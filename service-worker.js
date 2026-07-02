@@ -1,5 +1,6 @@
-/* Shadow Stock — Service Worker v4.0 */
-const CACHE_NAME = "shadow-stock-v4.1";
+/* Shadow Stock — Service Worker v4.2 */
+const CACHE_NAME = "shadow-stock-v4.2";
+const META_CACHE = "dragon-stock-meta"; // sayfa ile SW arasında paylaşılan küçük durum
 const APP_ASSETS = [
   "./",
   "./index.html",
@@ -29,7 +30,7 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k !== CACHE_NAME && k !== META_CACHE).map(k => caches.delete(k)))
     )
   );
   self.clients.claim();
@@ -54,6 +55,52 @@ self.addEventListener("fetch", event => {
     })
   );
 });
+
+/* ─── Sabah Hatırlatıcısı (Periodic Background Sync) ─────────────── */
+const META_KEY = "./app-meta.json";
+
+async function readMeta() {
+  try {
+    const c = await caches.open(META_CACHE);
+    const r = await c.match(META_KEY);
+    return r ? await r.json() : {};
+  } catch (e) { return {}; }
+}
+
+async function writeMeta(meta) {
+  try {
+    const c = await caches.open(META_CACHE);
+    await c.put(META_KEY, new Response(JSON.stringify(meta)));
+  } catch (e) {}
+}
+
+function swTodayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+self.addEventListener("periodicsync", event => {
+  if (event.tag === "daily-return-reminder") event.waitUntil(morningReminder());
+});
+
+async function morningReminder() {
+  const meta = await readMeta();
+  const now = new Date();
+  if (now.getHours() < 9) return;                    // sabah 9'dan önce bildirim yok
+  if (meta.lastReminderDate === swTodayKey()) return; // günde en fazla 1 kez
+  if (!meta.dueCount) return;                         // iade bekleyen parça yoksa sus
+  await self.registration.showNotification("🌅 Günaydın! Arızalı iadeleri verdin mi?", {
+    body: meta.summary || `${meta.dueCount} parça depoya iade bekliyor.`,
+    icon: "./icons/icon-192.png",
+    badge: "./icons/icon-192.png",
+    tag: "morning-reminder",
+    renotify: true,
+    vibrate: [200, 100, 200],
+    data: { url: "./" }
+  });
+  meta.lastReminderDate = swTodayKey();
+  await writeMeta(meta);
+}
 
 /* ─── Push Notification Support ──────────────────────────────────── */
 self.addEventListener("message", event => {

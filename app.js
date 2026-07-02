@@ -117,7 +117,8 @@ document.addEventListener("DOMContentLoaded", () => {
   detectIOS();
   checkBackup();
   updateDragonVisual();
-  checkReturnReminders();
+  morningCheck();
+  setupPeriodicReminder();
 });
 
 function cacheEls() {
@@ -303,8 +304,9 @@ function bindEvents() {
         }
         app.settings.notifications = true;
         save();
-        toast("🔔 Bildirimler açık — iade günü hatırlatılacak.", "success");
+        toast("🔔 Bildirimler açık — her sabah 09:00'dan sonra hatırlatılacak.", "success");
         checkReturnReminders();
+        setupPeriodicReminder();
       } else {
         app.settings.notifications = false;
         save();
@@ -816,7 +818,10 @@ function fmtCD(p) {
   return `⏱ ${pad(h)}:${pad(Math.floor((r % 3600000) / 60000))}:${pad(Math.floor((r % 60000) / 1000))} kaldı`;
 }
 
-function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(app)); }
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+  updateMetaCache(); // SW'nin sabah hatırlatıcısı için iade sayısını güncelle
+}
 function saveMsg(m) { save(); flash(m); render(); }
 function flash(m, e) { 
   if (!els.im) return; 
@@ -965,6 +970,78 @@ function syncSettingsUI() {
   set("#setSound", app.settings.sound);
   set("#setVibration", app.settings.vibration);
   set("#setNotif", app.settings.notifications && ("Notification" in window) && Notification.permission === "granted");
+}
+
+/* ─── Sabah Hatırlatıcısı ───────────────────────────────────────────
+   SW'nin sayfa kapalıyken de okuyabilmesi için iade sayısı ve özet,
+   Cache API üzerinden küçük bir meta dosyasına yazılır. */
+const META_CACHE = "dragon-stock-meta";
+const META_KEY = "./app-meta.json";
+
+async function readMeta() {
+  try {
+    const c = await caches.open(META_CACHE);
+    const r = await c.match(META_KEY);
+    return r ? await r.json() : {};
+  } catch (e) { return {}; }
+}
+
+async function updateMetaCache(extra) {
+  try {
+    if (!("caches" in window)) return;
+    const due = app.parts.filter(p => p.state === "warranty" || p.state === "ypa");
+    const names = due.slice(0, 3).map(p => `${p.code}${p.note ? " · " + p.note : ""}`).join(", ");
+    const prev = await readMeta();
+    const meta = Object.assign(prev, {
+      dueCount: due.length,
+      summary: due.length
+        ? `${due.length} parça depoya iade bekliyor: ${names}${due.length > 3 ? "…" : ""}`
+        : ""
+    }, extra || {});
+    const c = await caches.open(META_CACHE);
+    await c.put(META_KEY, new Response(JSON.stringify(meta)));
+  } catch (e) {}
+}
+
+/* Android, kurulu PWA'lara arka planda periyodik uyanma izni verir;
+   SW saat 9'dan sonraki ilk tetiklemede hatırlatmayı gösterir. */
+async function setupPeriodicReminder() {
+  try {
+    if (!app.settings.notifications) return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const reg = await navigator.serviceWorker?.ready;
+    if (!reg || !("periodicSync" in reg)) return;
+    const status = await navigator.permissions.query({ name: "periodic-background-sync" });
+    if (status.state !== "granted") return;
+    await reg.periodicSync.register("daily-return-reminder", { minInterval: 6 * 60 * 60 * 1000 });
+  } catch (e) {}
+}
+
+/* Uygulama açılınca: saat 9'u geçtiyse ve bugün hatırlatılmadıysa sor */
+async function morningCheck() {
+  try {
+    if (!app.settings.notifications) return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    if (new Date().getHours() < 9) return;
+    const meta = await readMeta();
+    if (meta.lastReminderDate === todayKey()) return;
+    const due = app.parts.filter(p => p.state === "warranty" || p.state === "ypa");
+    await updateMetaCache({ lastReminderDate: todayKey() });
+    if (!due.length) return;
+    const overdue = due.filter(p => Date.now() > (returnDeadline(p) || Infinity));
+    const body = due.slice(0, 5)
+      .map(p => `${p.code}${p.note ? " · " + p.note : ""} (${stateLabels[p.state]})`)
+      .join("\n");
+    const reg = await navigator.serviceWorker?.ready;
+    reg?.active?.postMessage({
+      type: "SHOW_NOTIFICATION",
+      title: overdue.length
+        ? `⚠️ ${overdue.length} iade GECİKTİ — Arızalı iadeleri verdin mi?`
+        : "🌅 Günaydın! Arızalı iadeleri verdin mi?",
+      body,
+      tag: "morning-reminder"
+    });
+  } catch (e) {}
 }
 
 /* Depoya iadesi geciken/yaklaşan parçalar için bildirim */
