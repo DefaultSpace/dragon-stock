@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Shadow Stock icon">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="36%" r="75%">
+      <stop offset="0%" stop-color="#0f2a4a"/>
+      <stop offset="55%" stop-color="#020617"/>
+      <stop offset="100%" stop-color="#00040b"/>
+    </radialGradient>
+
+    <linearGradient id="topFace" x1="161" y1="155" x2="351" y2="265" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8be9ff"/>
+      <stop offset="1" stop-color="#00d9f5"/>
+    </linearGradient>
+    <linearGradient id="leftFace" x1="161" y1="210" x2="256" y2="395" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0b3a52"/>
+      <stop offset="1" stop-color="#062338"/>
+    </linearGradient>
+    <linearGradient id="rightFace" x1="256" y1="210" x2="351" y2="395" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12547a"/>
+      <stop offset="1" stop-color="#0a3650"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="220" y1="95" x2="292" y2="150" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fde68a"/>
+      <stop offset="1" stop-color="#f8c550"/>
+    </linearGradient>
+
+    <filter id="glowCyan" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowGold" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Full-bleed background (safe for maskable adaptive icons) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="none" stroke="#00f5ff" stroke-opacity="0.06" stroke-width="2"/>
+
+  <!-- Ambient grid dots (subtle system texture) -->
+  <g fill="#00f5ff" opacity="0.10">
+    <circle cx="72" cy="88" r="3"/><circle cx="104" cy="88" r="3"/><circle cx="72" cy="120" r="3"/>
+    <circle cx="440" cy="424" r="3"/><circle cx="408" cy="424" r="3"/><circle cx="440" cy="392" r="3"/>
+  </g>
+
+  <!-- Scanner viewfinder corner brackets -->
+  <g stroke="#00f5ff" stroke-width="13" stroke-linecap="round" fill="none" filter="url(#glowCyan)" opacity="0.9">
+    <path d="M120 168v-48h48"/>
+    <path d="M392 168v-48h-48"/>
+    <path d="M120 372v48h48"/>
+    <path d="M392 372v48h-48"/>
+  </g>
+
+  <!-- Isometric stock crate -->
+  <g filter="url(#glowCyan)">
+    <path d="M161 210 256 155 351 210 256 265Z" fill="url(#topFace)"/>
+    <path d="M161 210 256 265 256 395 161 340Z" fill="url(#leftFace)"/>
+    <path d="M351 210 256 265 256 395 351 340Z" fill="url(#rightFace)"/>
+    <path d="M161 210 256 155 351 210 256 265 161 210Z M161 210 256 265 256 395 161 340 161 210Z M351 210 256 265 256 395 351 340 351 210Z"
+          fill="none" stroke="#eafcff" stroke-width="6" stroke-linejoin="round" opacity="0.85"/>
+  </g>
+
+  <!-- Front seam + tag chip (QR/part-code motif) -->
+  <line x1="256" y1="265" x2="256" y2="395" stroke="#7fe9ff" stroke-width="5" opacity="0.55"/>
+  <rect x="234" y="300" width="44" height="34" rx="6" fill="#020617" stroke="url(#goldGrad)" stroke-width="6" filter="url(#glowGold)"/>
+  <circle cx="246" cy="312" r="3.5" fill="#f8c550"/>
+  <circle cx="266" cy="312" r="3.5" fill="#f8c550"/>
+  <circle cx="246" cy="323" r="3.5" fill="#f8c550"/>
+
+  <!-- Rank-up chevrons above the crate -->
+  <g stroke="url(#goldGrad)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#glowGold)">
+    <path d="M222 122 256 92 290 122"/>
+    <path d="M222 100 256 70 290 100" opacity="0.55"/>
+  </g>
+</svg>

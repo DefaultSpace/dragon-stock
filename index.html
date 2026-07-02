@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b0b20" />
+    <meta name="description" content="Shadow Stock Takip — Görev yap, ejderhanı büyüt!" />
+    <title>Shadow Stock — Dragon Evolution</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icons/system-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <canvas id="particleCanvas"></canvas>
+    <div class="bg-aura"></div>
+    <div id="xpFloatLayer" class="xp-float-layer"></div>
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Header Section -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand-title">SHADOW STOCK</div>
+        <div class="user-badge-wrap">
+          <span class="user-name">Hüseyin Emrehan</span>
+          <span class="rank-badge" id="headerLevel">Lv.1</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button id="scanBtn" class="action-circle-btn" title="Barkod Tarayıcı">
+          <span>🔍</span>
+        </button>
+        <button id="statsBtn" class="action-circle-btn" title="İstatistikler">
+          <span>📊</span>
+        </button>
+        <button id="notifBtn" class="action-circle-btn" title="Ayarlar">
+          <span>⚙️</span>
+        </button>
+        <button id="installBtn" class="action-circle-btn hidden" title="Uygulamayı Kur">
+          <span>📥</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Dragon Companionship Section -->
+    <div class="dragon-scene" id="dragonScene">
+      <div class="dragon-glow" id="dragonGlow"></div>
+      <div class="dragon-container">
+        <div class="dragon-emoji-wrap" id="dragonEmojiWrap">
+          <div class="dragon-emoji-shadow"></div>
+          <div class="dragon-emoji" id="dragonEmoji">🥚</div>
+          <div class="dragon-sparkle s1">✦</div>
+          <div class="dragon-sparkle s2">✦</div>
+          <div class="dragon-fire-burst" id="dragonFireBurst"></div>
+        </div>
+      </div>
+      <div class="dragon-details">
+        <div class="dragon-meta">
+          <h2 id="dragonName">🥚 Ejderha Yumurtası</h2>
+          <span class="lvl-tag" id="dragonLv">Lv.1</span>
+        </div>
+        <p id="dragonDesc" class="dragon-desc">Yükleniyor...</p>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="dragonExpFill" style="width: 0%"></div>
+          </div>
+          <div class="progress-labels">
+            <span>EXP</span>
+            <span id="dragonExpText">0/100</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Stats Bar -->
+    <div class="quick-stats-bar">
+      <div class="q-stat" data-filter-shortcut="active">
+        <span class="qs-val" id="activeCount">0</span>
+        <span class="qs-lbl">Aktif Stok</span>
+      </div>
+      <div class="q-stat" data-filter-shortcut="warranty">
+        <span class="qs-val text-warn" id="warrantyCount">0</span>
+        <span class="qs-lbl">Garanti</span>
+      </div>
+      <div class="q-stat" data-filter-shortcut="ypa">
+        <span class="qs-val text-red" id="ypaCount">0</span>
+        <span class="qs-lbl">YPA</span>
+      </div>
+      <div class="q-stat" data-filter-shortcut="safeReturn">
+        <span class="qs-val text-cyan" id="safeReturnCount">0</span>
+        <span class="qs-lbl">İade</span>
+      </div>
+    </div>
+
+    <!-- Daily Quests -->
+    <section class="quests-section">
+      <div class="section-title-wrap">
+        <h3>🎯 Günlük Av Görevleri</h3>
+      </div>
+      <div class="quests-grid">
+        <div class="daily-btn" data-complete-quest="stockEntry">
+          <div class="quest-info">
+            <div class="quest-title">Stok Girişi Yap</div>
+            <div class="quest-reward">+50 EXP / +20 Gold</div>
+          </div>
+          <div class="quest-status-icon">🔒</div>
+        </div>
+        <div class="daily-btn" data-complete-quest="ypaHunter">
+          <div class="quest-info">
+            <div class="quest-title">YPA Avcısı (Parça Kapat)</div>
+            <div class="quest-reward">+150 EXP / +80 Gold</div>
+          </div>
+          <div class="quest-status-icon">🔒</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Entry Form -->
+    <main class="main-content">
+      <form id="partForm" class="entry-card">
+        <div class="input-row">
+          <div class="input-group">
+            <input type="text" id="partInput" placeholder="8 Haneli BSH Kodu Girin..." inputmode="numeric" autocomplete="off" required maxLength="8" />
+            <label for="partInput">BSH Malzeme Kodu</label>
+          </div>
+          <button type="submit" class="submit-btn">
+            <span>Ekle</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+        </div>
+        <div class="input-group note-group">
+          <input type="text" id="partNoteInput" placeholder="İsteğe bağlı cihaz, arıza veya müşteri notu..." autocomplete="off" />
+          <label for="partNoteInput">Parça Notu</label>
+        </div>
+        <p id="inputMessage" class="input-msg"></p>
+      </form>
+
+      <!-- Advanced Filters Section -->
+      <div class="filter-wrapper">
+        <div class="filter-scroll">
+          <button class="f-chip active" data-filter="all">Tüm Parçalar</button>
+          <button class="f-chip" data-filter="active">Aktif Stok</button>
+          <button class="f-chip" data-filter="warranty">Garanti</button>
+          <button class="f-chip" data-filter="ypa">YPA Acil</button>
+          <button class="f-chip" data-filter="safeReturn">Sağlam İade</button>
+          <button class="f-chip" data-filter="history">Geçmiş Arşiv</button>
+        </div>
+      </div>
+
+      <!-- Search Section -->
+      <div class="search-box-wrap">
+        <div class="search-input-field">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Kod, not, tarih veya duruma göre akıllı ara..." autocomplete="off" />
+          <button id="clearSearchBtn" type="button" class="clear-search-btn">&times;</button>
+        </div>
+      </div>
+
+      <!-- Dynamic Stock Board -->
+      <div id="stockColumns" class="stock-columns">
+        <!-- Columns rendered dynamically by JavaScript -->
+      </div>
+    </main>
+
+    <!-- Control Center Actions Footer -->
+    <footer class="control-center">
+      <button id="auditBtn" class="control-btn accent-btn">
+        <span>📋</span> Anlık Sayım Yap
+      </button>
+      <button id="weeklyCountBtn" class="control-btn position-relative">
+        <span>📅</span> Haftalık Genel Sayım
+        <span id="weeklyBadge" class="badge-dot hidden"></span>
+      </button>
+      <button id="exportBtn" class="control-btn">
+        <span>📤</span> Veri Yedekle (JSON)
+      </button>
+      <div class="file-upload-wrapper control-btn">
+        <span>📥</span> Veri Yükle
+        <input type="file" id="importInput" accept=".json" />
+      </div>
+      <button id="clearHistoryBtn" class="control-btn danger-btn">
+        <span>🗑️</span> Arşivi Temizle
+      </button>
+      <button id="seedBtn" class="control-btn debug-btn">
+        <span>🔄</span> Mock Veri Yükle
+      </button>
+    </footer>
+
+    <!-- Dialogs & Modals System -->
+    <dialog id="statsDialog" class="d-dialog">
+      <div class="d-content">
+        <div class="d-header">
+          <span id="dDialogEmoji" class="d-avatar">🥚</span>
+          <div>
+            <h2 id="dDialogName">Ejderha Durumu</h2>
+            <p id="dDialogDesc" style="font-size:0.85rem;color:var(--muted)"></p>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="sc-label">Seviye (Level)</span>
+            <span class="sc-value text-gold" id="dialogLevel">1</span>
+          </div>
+          <div class="stat-card">
+            <span class="sc-label">Güç (Strength)</span>
+            <span class="sc-value" id="strengthStat">1</span>
+          </div>
+          <div class="stat-card">
+            <span class="sc-label">Çeviklik (Agility)</span>
+            <span class="sc-value" id="agilityStat">1</span>
+          </div>
+          <div class="stat-card">
+            <span class="sc-label">Algı (Perception)</span>
+            <span class="sc-value" id="perceptionStat">1</span>
+          </div>
+          <div class="stat-card">
+            <span class="sc-label">Alev Gücü (Firepower)</span>
+            <span class="sc-value" id="firePowerStat">1</span>
+          </div>
+          <div class="stat-card">
+            <span class="sc-label">Biriken Altın</span>
+            <span class="sc-value text-gold" id="goldStat">0</span>
+          </div>
+        </div>
+        <form method="dialog" class="d-footer">
+          <button class="p-btn">Kapat</button>
+        </form>
+      </div>
+    </dialog>
+
+    <dialog id="auditDialog" class="d-dialog">
+      <form method="dialog" class="d-content">
+        <h2>📋 Anlık Stok Doğrulama</h2>
+        <p id="auditSummary" class="audit-summary-text"></p>
+        <div id="auditChecklist" class="audit-list"></div>
+        <menu class="d-menu">
+          <button id="auditMismatch" class="d-btn" type="button">Eksik / Hatalı</button>
+          <button id="auditMatch" class="p-btn" type="button">✅ Hepsi Eksiksiz</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="weeklyDialog" class="d-dialog">
+      <form method="dialog" class="d-content">
+        <h2>📋 Haftalık Genel Sayım Kontrolü</h2>
+        <p id="weeklySummary" class="audit-summary-text"></p>
+        <div id="weeklyChecklist" class="audit-list"></div>
+        <menu class="d-menu">
+          <button id="weeklyCountClose" value="cancel" class="g-btn">Daha Sonra</button>
+          <button id="weeklyCountMatch" class="p-btn" type="button">✅ Sayımı Tamamla (+300 EXP)</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="notifDialog" class="d-dialog">
+      <form method="dialog" class="d-content">
+        <h2>⚙️ Sistem ve Bildirim Ayarları</h2>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Shadow Stock PWA altyapı ayarları.</p>
+        <div class="settings-list">
+          <div class="setting-item">
+            <span>Otomatik Bildirimler</span>
+            <input type="checkbox" checked disabled />
+          </div>
+          <div class="setting-item">
+            <span>Hassas Konum ve Zamanlama</span>
+            <input type="checkbox" checked disabled />
+          </div>
+        </div>
+        <menu class="d-menu" style="margin-top:20px">
+          <button value="cancel" class="p-btn">Değişiklikleri Kaydet</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="scannerDialog" class="d-dialog">
+      <form method="dialog" class="d-content">
+        <h2>◎ Akıllı Barkod Tarayıcı</h2>
+        <div class="scanner-frame">
+          <video id="scannerVideo" playsinline muted autoplay></video>
+          <div class="scanner-laser"></div>
+          <div class="scanner-tip" id="scannerTip">Kamerayı parça üzerindeki barkoda hizalayın</div>
+        </div>
+        <menu class="d-menu">
+          <button id="simulateScan" class="g-btn" type="button">Elle Simüle Et</button>
+          <button value="cancel" class="g-btn">İptal</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
