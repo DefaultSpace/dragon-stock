@@ -1,5 +1,5 @@
 /* Shadow Stock — Service Worker v4.0 */
-const CACHE_NAME = "shadow-stock-v4.0";
+const CACHE_NAME = "shadow-stock-v4.1";
 const APP_ASSETS = [
   "./",
   "./index.html",

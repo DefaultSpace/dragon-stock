@@ -23,10 +23,15 @@
     <!-- Header Section -->
     <header class="app-header">
       <div class="header-left">
-        <div class="brand-title">SHADOW STOCK</div>
-        <div class="user-badge-wrap">
-          <span class="user-name">Hüseyin Emrehan</span>
-          <span class="rank-badge" id="headerLevel">Lv.1</span>
+        <div class="brand-row">
+          <img class="brand-logo" src="icons/system-icon.svg" alt="Dragon Stock logo" />
+          <div>
+            <div class="brand-title">SHADOW STOCK</div>
+            <div class="user-badge-wrap">
+              <span class="user-name">Hüseyin Emrehan</span>
+              <span class="rank-badge" id="headerLevel">Lv.1</span>
+            </div>
+          </div>
         </div>
       </div>
       <div class="header-right">
@@ -83,7 +88,7 @@
       </div>
       <div class="q-stat" data-filter-shortcut="warranty">
         <span class="qs-val text-warn" id="warrantyCount">0</span>
-        <span class="qs-lbl">Garanti</span>
+        <span class="qs-lbl">Arızalı İade</span>
       </div>
       <div class="q-stat" data-filter-shortcut="ypa">
         <span class="qs-val text-red" id="ypaCount">0</span>
@@ -143,7 +148,7 @@
         <div class="filter-scroll">
           <button class="f-chip active" data-filter="all">Tüm Parçalar</button>
           <button class="f-chip" data-filter="active">Aktif Stok</button>
-          <button class="f-chip" data-filter="warranty">Garanti</button>
+          <button class="f-chip" data-filter="warranty">Arızalı İade</button>
           <button class="f-chip" data-filter="ypa">YPA Acil</button>
           <button class="f-chip" data-filter="safeReturn">Sağlam İade</button>
           <button class="f-chip" data-filter="history">Geçmiş Arşiv</button>
@@ -183,9 +188,6 @@
       </div>
       <button id="clearHistoryBtn" class="control-btn danger-btn">
         <span>🗑️</span> Arşivi Temizle
-      </button>
-      <button id="seedBtn" class="control-btn debug-btn">
-        <span>🔄</span> Mock Veri Yükle
       </button>
     </footer>
 
@@ -257,20 +259,29 @@
 
     <dialog id="notifDialog" class="d-dialog">
       <form method="dialog" class="d-content">
-        <h2>⚙️ Sistem ve Bildirim Ayarları</h2>
-        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Shadow Stock PWA altyapı ayarları.</p>
+        <h2>⚙️ Ayarlar</h2>
+        <p class="settings-sub">Tercihlerin bu cihazda saklanır.</p>
         <div class="settings-list">
-          <div class="setting-item">
-            <span>Otomatik Bildirimler</span>
-            <input type="checkbox" checked disabled />
-          </div>
-          <div class="setting-item">
-            <span>Hassas Konum ve Zamanlama</span>
-            <input type="checkbox" checked disabled />
-          </div>
+          <label class="setting-item">
+            <span class="setting-label">🔔 Bildirimler<small>İade günü gelen parçalar için hatırlatma</small></span>
+            <input type="checkbox" id="setNotif" />
+          </label>
+          <label class="setting-item">
+            <span class="setting-label">🔊 Ses Efektleri<small>Tıklama ve başarı sesleri</small></span>
+            <input type="checkbox" id="setSound" />
+          </label>
+          <label class="setting-item">
+            <span class="setting-label">📳 Titreşim<small>Dokunsal geri bildirim</small></span>
+            <input type="checkbox" id="setVibration" />
+          </label>
         </div>
-        <menu class="d-menu" style="margin-top:20px">
-          <button value="cancel" class="p-btn">Değişiklikleri Kaydet</button>
+        <div class="danger-zone">
+          <h3>⚠️ Tehlikeli Bölge</h3>
+          <button type="button" id="resetAppBtn" class="d-btn full-w">♻️ Tüm Verileri Sıfırla</button>
+          <p class="danger-note">Tüm parçalar, seviye ilerlemesi ve parça hafızası kalıcı olarak silinir. Önce ana ekrandan "Veri Yedekle (JSON)" ile yedek alman önerilir.</p>
+        </div>
+        <menu class="d-menu">
+          <button value="cancel" class="p-btn">Kapat</button>
         </menu>
       </form>
     </dialog>

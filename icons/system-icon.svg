@@ -1,75 +1,77 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Shadow Stock icon">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Dragon Stock icon">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="36%" r="75%">
-      <stop offset="0%" stop-color="#0f2a4a"/>
-      <stop offset="55%" stop-color="#020617"/>
-      <stop offset="100%" stop-color="#00040b"/>
+    <radialGradient id="bg" cx="50%" cy="38%" r="78%">
+      <stop offset="0%" stop-color="#1a1440"/>
+      <stop offset="55%" stop-color="#0a0a24"/>
+      <stop offset="100%" stop-color="#030310"/>
     </radialGradient>
-
-    <linearGradient id="topFace" x1="161" y1="155" x2="351" y2="265" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8be9ff"/>
-      <stop offset="1" stop-color="#00d9f5"/>
+    <radialGradient id="aura" cx="50%" cy="46%" r="46%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.30"/>
+      <stop offset="60%" stop-color="#00f5ff" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#00f5ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="eggGrad" x1="196" y1="120" x2="330" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffe9a8"/>
+      <stop offset="0.45" stop-color="#f8c550"/>
+      <stop offset="0.82" stop-color="#e08b28"/>
+      <stop offset="1" stop-color="#b95f14"/>
     </linearGradient>
-    <linearGradient id="leftFace" x1="161" y1="210" x2="256" y2="395" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0b3a52"/>
-      <stop offset="1" stop-color="#062338"/>
+    <linearGradient id="crackGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a8fdff"/>
+      <stop offset="1" stop-color="#00c8f5"/>
     </linearGradient>
-    <linearGradient id="rightFace" x1="256" y1="210" x2="351" y2="395" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#12547a"/>
-      <stop offset="1" stop-color="#0a3650"/>
-    </linearGradient>
-    <linearGradient id="goldGrad" x1="220" y1="95" x2="292" y2="150" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#fde68a"/>
-      <stop offset="1" stop-color="#f8c550"/>
-    </linearGradient>
-
     <filter id="glowCyan" x="-60%" y="-60%" width="220%" height="220%">
       <feGaussianBlur stdDeviation="7" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="glowGold" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="6" result="b"/>
+    <filter id="glowCrack" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowSoft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
   <!-- Full-bleed background (safe for maskable adaptive icons) -->
   <rect width="512" height="512" fill="url(#bg)"/>
-  <rect width="512" height="512" fill="none" stroke="#00f5ff" stroke-opacity="0.06" stroke-width="2"/>
-
-  <!-- Ambient grid dots (subtle system texture) -->
-  <g fill="#00f5ff" opacity="0.10">
-    <circle cx="72" cy="88" r="3"/><circle cx="104" cy="88" r="3"/><circle cx="72" cy="120" r="3"/>
-    <circle cx="440" cy="424" r="3"/><circle cx="408" cy="424" r="3"/><circle cx="440" cy="392" r="3"/>
-  </g>
+  <rect width="512" height="512" fill="url(#aura)"/>
 
   <!-- Scanner viewfinder corner brackets -->
-  <g stroke="#00f5ff" stroke-width="13" stroke-linecap="round" fill="none" filter="url(#glowCyan)" opacity="0.9">
-    <path d="M120 168v-48h48"/>
-    <path d="M392 168v-48h-48"/>
-    <path d="M120 372v48h48"/>
-    <path d="M392 372v48h-48"/>
+  <g stroke="#00f5ff" stroke-width="14" stroke-linecap="round" fill="none" filter="url(#glowCyan)" opacity="0.92">
+    <path d="M118 166v-48h48"/>
+    <path d="M394 166v-48h-48"/>
+    <path d="M118 366v48h48"/>
+    <path d="M394 366v48h-48"/>
   </g>
 
-  <!-- Isometric stock crate -->
-  <g filter="url(#glowCyan)">
-    <path d="M161 210 256 155 351 210 256 265Z" fill="url(#topFace)"/>
-    <path d="M161 210 256 265 256 395 161 340Z" fill="url(#leftFace)"/>
-    <path d="M351 210 256 265 256 395 351 340Z" fill="url(#rightFace)"/>
-    <path d="M161 210 256 155 351 210 256 265 161 210Z M161 210 256 265 256 395 161 340 161 210Z M351 210 256 265 256 395 351 340 351 210Z"
-          fill="none" stroke="#eafcff" stroke-width="6" stroke-linejoin="round" opacity="0.85"/>
-  </g>
+  <!-- Egg shadow -->
+  <ellipse cx="256" cy="412" rx="92" ry="16" fill="#000" opacity="0.5"/>
 
-  <!-- Front seam + tag chip (QR/part-code motif) -->
-  <line x1="256" y1="265" x2="256" y2="395" stroke="#7fe9ff" stroke-width="5" opacity="0.55"/>
-  <rect x="234" y="300" width="44" height="34" rx="6" fill="#020617" stroke="url(#goldGrad)" stroke-width="6" filter="url(#glowGold)"/>
-  <circle cx="246" cy="312" r="3.5" fill="#f8c550"/>
-  <circle cx="266" cy="312" r="3.5" fill="#f8c550"/>
-  <circle cx="246" cy="323" r="3.5" fill="#f8c550"/>
+  <!-- Dragon egg -->
+  <path d="M256 112
+           C 322 112 352 208 352 282
+           C 352 356 312 408 256 408
+           C 200 408 160 356 160 282
+           C 160 208 190 112 256 112 Z"
+        fill="url(#eggGrad)"/>
 
-  <!-- Rank-up chevrons above the crate -->
-  <g stroke="url(#goldGrad)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#glowGold)">
-    <path d="M222 122 256 92 290 122"/>
-    <path d="M222 100 256 70 290 100" opacity="0.55"/>
-  </g>
+  <!-- Egg shine -->
+  <path d="M208 162 C 222 136 242 126 256 126 C 234 138 220 158 212 186 C 206 206 192 204 194 186 C 195 177 201 172 208 162 Z"
+        fill="#ffffff" opacity="0.55"/>
+  <ellipse cx="296" cy="362" rx="30" ry="17" fill="#7a3c0a" opacity="0.3" transform="rotate(-16 296 362)"/>
+
+  <!-- Glowing hatching crack -->
+  <path d="M258 178 L 234 232 L 274 224 L 246 286 L 290 274 L 260 342"
+        fill="none" stroke="url(#crackGrad)" stroke-width="14"
+        stroke-linecap="round" stroke-linejoin="round" filter="url(#glowCrack)"/>
+  <path d="M234 232 L 208 252 M 290 274 L 314 296"
+        fill="none" stroke="url(#crackGrad)" stroke-width="9"
+        stroke-linecap="round" filter="url(#glowCrack)" opacity="0.8"/>
+
+  <!-- Sparkles -->
+  <path d="M126 250 l 7 19 19 7 -19 7 -7 19 -7 -19 -19 -7 19 -7 Z" fill="#00f5ff" filter="url(#glowSoft)" opacity="0.95"/>
+  <path d="M390 218 l 6 16 16 6 -16 6 -6 16 -6 -16 -16 -6 16 -6 Z" fill="#f8c550" filter="url(#glowSoft)"/>
+  <path d="M352 128 l 4 12 12 4 -12 4 -4 12 -4 -12 -12 -4 12 -4 Z" fill="#a8fdff" filter="url(#glowSoft)" opacity="0.85"/>
 </svg>

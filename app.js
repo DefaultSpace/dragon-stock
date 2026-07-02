@@ -9,29 +9,32 @@ const STORAGE_KEY  = "shadowStockSystem.v3";
 const DAY_MS       = 24 * 60 * 60 * 1000;
 const THREE_DAYS   = 3 * DAY_MS;
 
+/* Durum anahtarları eski kayıtlarla uyum için aynı kaldı;
+   "warranty" artık garantili değişimden çıkan eski parçanın
+   ertesi gün depoya verilmesi gereken "Arızalı İade" durumu. */
 const stateLabels = {
   active: "Aktif",
-  warranty: "Garanti",
+  warranty: "Arızalı İade",
   ypa: "YPA",
-  safeReturn: "İade",
+  safeReturn: "Sağlam İade",
   history: "Geçmiş"
 };
 
 const columns = [
-  { key: "active",     title: "Aktif Stok", hint: "Araçtaki parçalar" },
-  { key: "warranty",   title: "Garanti",     hint: "İade edilecekler" },
-  { key: "ypa",        title: "YPA Acil",    hint: "24 saat içinde" },
-  { key: "safeReturn", title: "Sağlam İade", hint: "Kullanılmayan" },
-  { key: "history",    title: "Geçmiş",      hint: "Arşiv" }
+  { key: "active",     title: "Aktif Stok",   hint: "Araçtaki / elimdeki parçalar" },
+  { key: "warranty",   title: "Arızalı İade", hint: "Garantili değişim — ertesi gün depoya" },
+  { key: "ypa",        title: "YPA Acil",     hint: "Kırık/arızalı geldi — 24 saat içinde depoya" },
+  { key: "safeReturn", title: "Sağlam İade",  hint: "Kullanılmadı — depoya geri verilecek" },
+  { key: "history",    title: "Geçmiş",       hint: "Kapanan işlemler" }
 ];
 
 const activeStates = ["active", "warranty", "ypa", "safeReturn"];
 
 const DRAGON_STAGES = [
-  { id: "egg",        name: "🥚 Ejderha Yumurtası",  minLevel: 0,  emoji: "🥚", desc: "İçinden bir ejderha çıkacak! Görev yaptıkça çatlayacak..." },
-  { id: "hatchling",  name: "🐣 Minik Ejderha",       minLevel: 1,  emoji: "🐣", desc: "Yumurtadan çıktı! Küçük kanatları var." },
-  { id: "young",      name: "🐉 Genç Ejderha",        minLevel: 4,  emoji: "🐉", desc: "Kanatları güçlendi, alev püskürtüyor!" },
-  { id: "adult",      name: "🐲 Yetişkin Ejderha",     minLevel: 8,  emoji: "🐲", desc: "Gökyüzünde süzülüyor, alevleri cehennem sıcağı." },
+  { id: "egg",        name: "🥚 Ejderha Yumurtası",  minLevel: 0,  emoji: "🥚", desc: "İçinden bir ejderha çıkacak! İş yaptıkça çatlayacak..." },
+  { id: "hatchling",  name: "🐣 Minik Ejderha",       minLevel: 3,  emoji: "🐣", desc: "Yumurtadan çıktı! Küçük kanatları var." },
+  { id: "young",      name: "🐉 Genç Ejderha",        minLevel: 6,  emoji: "🐉", desc: "Kanatları güçlendi, alev püskürtüyor!" },
+  { id: "adult",      name: "🐲 Yetişkin Ejderha",     minLevel: 10, emoji: "🐲", desc: "Gökyüzünde süzülüyor, alevleri cehennem sıcağı." },
   { id: "ancient",    name: "⚡ Efsanevi Ejderha",    minLevel: 16, emoji: "⚡", desc: "Zamanın başlangıcından beri var." }
 ];
 
@@ -45,6 +48,7 @@ const sfx = {
   },
   play(type) {
     vibrate({ click: 8, success: [15, 30, 15], laser: [30, 50, 30], levelUp: [40, 60, 40, 60, 80] }[type] || 8);
+    if (app && app.settings && app.settings.sound === false) return;
     try {
       this.init();
       if (!this.ctx) return;
@@ -113,6 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
   detectIOS();
   checkBackup();
   updateDragonVisual();
+  checkReturnReminders();
 });
 
 function cacheEls() {
@@ -143,8 +148,16 @@ function bindEvents() {
   }
   
   if (els.pi) {
-    els.pi.addEventListener("input", () => { 
-      els.pi.value = els.pi.value.replace(/\D/g, "").slice(0, 8); 
+    els.pi.addEventListener("input", () => {
+      els.pi.value = els.pi.value.replace(/\D/g, "").slice(0, 8);
+      // Parça hafızası: kod tamamlanınca adı otomatik doldur
+      if (els.pi.value.length === 8 && els.pn) {
+        const known = app.catalog[els.pi.value];
+        if (known && !els.pn.value.trim()) {
+          els.pn.value = known;
+          flash(`💡 Hafızadan bulundu: ${known}`);
+        }
+      }
     });
   }
 
@@ -187,16 +200,14 @@ function bindEvents() {
   }
 
   document.querySelectorAll("[data-complete-quest]").forEach(b => {
-    b.addEventListener("click", () => completeQuest(b.dataset.completeQuest));
-  });
-
-  const resetQuestsBtn = document.querySelector("#resetQuestsBtn");
-  if (resetQuestsBtn) {
-    resetQuestsBtn.addEventListener("click", () => { 
-      app.quests = { date: todayKey(), completed: {} }; 
-      saveMsg("Görevler yenilendi."); 
+    b.addEventListener("click", () => {
+      const k = b.dataset.completeQuest;
+      if (app.quests.completed[k]) { flash("Bu görev bugün tamamlandı. 🎉"); return; }
+      flash(k === "stockEntry"
+        ? "Bu görev stok girişi yapınca otomatik tamamlanır."
+        : "Bu görev bir iade parçasını depoya teslim edince tamamlanır.");
     });
-  }
+  });
 
   document.querySelectorAll(".f-chip").forEach(t => {
     t.addEventListener("click", () => {
@@ -244,7 +255,74 @@ function bindEvents() {
   if (els.ds) els.ds.addEventListener("click", () => { sfx.play("click"); openStats(); });
 
   const notifBtn = document.querySelector("#notifBtn");
-  if (notifBtn && els.nd) notifBtn.addEventListener("click", () => els.nd.showModal());
+  if (notifBtn && els.nd) {
+    notifBtn.addEventListener("click", () => {
+      sfx.play("click");
+      syncSettingsUI();
+      els.nd.showModal();
+    });
+  }
+
+  // Ayarlar: ses / titreşim / bildirim anahtarları
+  const setSound = document.querySelector("#setSound");
+  if (setSound) {
+    setSound.addEventListener("change", () => {
+      app.settings.sound = setSound.checked;
+      save();
+      if (setSound.checked) sfx.play("click");
+      flash(setSound.checked ? "🔊 Sesler açık." : "🔇 Sesler kapalı.");
+    });
+  }
+
+  const setVibration = document.querySelector("#setVibration");
+  if (setVibration) {
+    setVibration.addEventListener("change", () => {
+      app.settings.vibration = setVibration.checked;
+      save();
+      if (setVibration.checked) vibrate([20, 40, 20]);
+      flash(setVibration.checked ? "📳 Titreşim açık." : "Titreşim kapalı.");
+    });
+  }
+
+  const setNotif = document.querySelector("#setNotif");
+  if (setNotif) {
+    setNotif.addEventListener("change", async () => {
+      if (setNotif.checked) {
+        if (!("Notification" in window)) {
+          setNotif.checked = false;
+          err("Bu tarayıcı bildirimleri desteklemiyor.");
+          return;
+        }
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") {
+          setNotif.checked = false;
+          err("Bildirim izni verilmedi. Tarayıcı ayarlarından izin verebilirsin.");
+          app.settings.notifications = false;
+          save();
+          return;
+        }
+        app.settings.notifications = true;
+        save();
+        toast("🔔 Bildirimler açık — iade günü hatırlatılacak.", "success");
+        checkReturnReminders();
+      } else {
+        app.settings.notifications = false;
+        save();
+        flash("Bildirimler kapatıldı.");
+      }
+    });
+  }
+
+  const resetAppBtn = document.querySelector("#resetAppBtn");
+  if (resetAppBtn) {
+    resetAppBtn.addEventListener("click", () => {
+      if (!confirm("TÜM veriler silinecek: parçalar, seviye, altın ve parça hafızası.\n\nDevam edilsin mi?")) return;
+      if (!confirm("Son onay: Bu işlem GERİ ALINAMAZ. Yedek almadıysan iptal et.\n\nHer şey silinsin mi?")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(BK_KEY);
+      location.reload();
+    });
+  }
 
   const exportBtn = document.querySelector("#exportBtn");
   if (exportBtn) exportBtn.addEventListener("click", () => { sfx.play("success"); exportJson(); });
@@ -258,17 +336,6 @@ function bindEvents() {
       app.parts = app.parts.filter(p => p.state !== "history");
       vibrate([20, 40, 20]);
       saveMsg(`${n} kayıt temizlendi.`);
-    });
-  }
-
-  const seedBtn = document.querySelector("#seedBtn");
-  if (seedBtn) {
-    seedBtn.addEventListener("click", () => { 
-      app = initState(true); 
-      activeFilter = "all"; 
-      searchTerm = ""; 
-      if (els.si) els.si.value = ""; 
-      saveMsg("Mock veri yenilendi."); 
     });
   }
 
@@ -312,37 +379,49 @@ function loadState() {
 }
 app = loadState();
 
-function initState(fresh) {
-  const n = Date.now();
+const AUTO_NOTES = ["Barkod Tarayıcı İle Eklendi", "Barkod ile okutuldu"];
+
+function initState() {
   return {
-    profile: { name: "Hüseyin Emrehan", level: 1, exp: 30, stats: { strength: 2, agility: 2, perception: 1, firePower: 1 }, gold: 80 },
+    profile: { name: "Hüseyin Emrehan", level: 1, exp: 0, stats: { strength: 1, agility: 1, perception: 1, firePower: 1 }, gold: 0 },
     quests: { date: todayKey(), completed: {} },
-    penaltyActive: false, lastYpaClosureDate: null,
+    penaltyActive: false,
     weeklyCount: { lastDoneAt: null, weekKey: null },
-    parts: [
-      mkPart("12345678", "active", n - 2 * 3600000, "Çamaşır makinesi motoru"),
-      mkPart("87654321", "warranty", n - 31 * 3600000, "Bulaşık makinesi kartı"),
-      mkPart("11223344", "ypa", n - 3 * 3600000, "Buzdolabı NTC sensör"),
-      mkPart("55667788", "safeReturn", n - 7 * 3600000, "Fırın rezistansı")
-    ]
+    settings: { sound: true, vibration: true, notifications: false },
+    catalog: {},
+    parts: []
   };
 }
 
 function normalize(d) {
   const p = d.profile || {};
-  const s = { 
-    strength: +p.stats?.strength || 1, 
-    agility: +p.stats?.agility || 1, 
-    perception: +p.stats?.perception || 1, 
-    firePower: +p.stats?.firePower || 1 
+  const s = {
+    strength: +p.stats?.strength || 1,
+    agility: +p.stats?.agility || 1,
+    perception: +p.stats?.perception || 1,
+    firePower: +p.stats?.firePower || 1
   };
-  return {
+  const st = d.settings || {};
+  const state = {
     profile: { name: p.name || "Hüseyin Emrehan", level: +p.level || 1, exp: +p.exp || 0, stats: s, gold: +p.gold || 0 },
     quests: d.quests || { date: todayKey(), completed: {} },
-    penaltyActive: !!d.penaltyActive, lastYpaClosureDate: d.lastYpaClosureDate || null,
+    penaltyActive: !!d.penaltyActive,
     weeklyCount: d.weeklyCount || { lastDoneAt: null, weekKey: null },
+    settings: {
+      sound: st.sound !== false,
+      vibration: st.vibration !== false,
+      notifications: st.notifications === true
+    },
+    catalog: (d.catalog && typeof d.catalog === "object") ? d.catalog : {},
     parts: Array.isArray(d.parts) ? d.parts.map(normalizePart).filter(Boolean) : []
   };
+  // Parça hafızasını eski kayıtlardaki notlardan da besle
+  for (const part of state.parts) {
+    if (part.note && !AUTO_NOTES.includes(part.note) && !state.catalog[part.code]) {
+      state.catalog[part.code] = part.note;
+    }
+  }
+  return state;
 }
 
 function normalizePart(p) {
@@ -370,24 +449,32 @@ function addPart(val, note) {
   const code = ("" + val).trim();
   if (!/^\d{8}$/.test(code)) { flash("BSH kodu 8 rakam olmalı.", true); return; }
   const dup = app.parts.find(p => p.code === code && p.state !== "history");
-  if (dup) { 
-    setFilter(dup.state); 
-    searchTerm = code; 
-    if (els.si) els.si.value = code; 
-    flash(`${code} zaten ${stateLabels[dup.state]} listesinde.`, true); 
-    return; 
+  if (dup) {
+    setFilter(dup.state);
+    searchTerm = code;
+    if (els.si) els.si.value = code;
+    flash(`${code} zaten ${stateLabels[dup.state]} listesinde.`, true);
+    return;
+  }
+  // Parça hafızası: not girilmediyse hafızadan al, girildiyse hafızayı güncelle
+  let finalNote = (note || "").trim();
+  if (!finalNote && app.catalog[code]) {
+    finalNote = app.catalog[code];
+  } else if (finalNote && !AUTO_NOTES.includes(finalNote)) {
+    app.catalog[code] = finalNote;
   }
   sfx.play("success");
-  app.parts.unshift(mkPart(code, "active", Date.now(), note));
+  app.parts.unshift(mkPart(code, "active", Date.now(), finalNote));
   award(20, 0, "agility", 1, "Stok girişi");
+  autoQuest("stockEntry");
   if (els.pi) { els.pi.value = ""; els.pi.focus(); }
-  if (els.pn) els.pn.value = ""; 
-  save(); flash(`${code} eklendi.`); render();
-  
+  if (els.pn) els.pn.value = "";
+  save(); flash(`${code}${finalNote ? " · " + finalNote : ""} eklendi.`); render();
+
   const card = document.querySelector(`[data-card-id="${app.parts[0].id}"]`);
-  if (card) { 
-    card.classList.add("just-added"); 
-    setTimeout(() => card.classList.remove("just-added"), 1200); 
+  if (card) {
+    card.classList.add("just-added");
+    setTimeout(() => card.classList.remove("just-added"), 1200);
   }
   floatXP("+20 EXP", els.pi);
 }
@@ -397,38 +484,46 @@ function changeState(id, next) {
   const p = findP(id); if (!p) return;
   const card = document.querySelector(`[data-card-id="${id}"]`);
   if (card) card.classList.add("state-changing");
+  const prev = p.state;
   const now = Date.now(); p.state = next; p.history.push({ state: next, at: now });
   if (next === "active") p.timestamps.acquiredAt ||= now;
   if (next === "warranty") p.timestamps.mountedAt = now;
   if (next === "history") p.timestamps.archivedAt = now;
   if (next === "ypa") p.timestamps.ypaStartedAt = now;
   if (next === "safeReturn") p.timestamps.returnDecisionAt = now;
-  
-  const r = { 
-    warranty: { e: 45, s: "strength" }, 
-    history: { e: 80, g: 60, s: "strength" }, 
-    ypa: { e: 25, s: "agility" }, 
-    safeReturn: { e: 35, g: 15 }, 
-    active: { e: 10 } 
+
+  const r = {
+    warranty: { e: 45, s: "strength" },
+    history: { e: 80, g: 60, s: "strength" },
+    ypa: { e: 25, s: "agility" },
+    safeReturn: { e: 35, g: 15 },
+    active: { e: 10 }
   }[next];
-  
+
   if (r) award(r.e || 0, r.g || 0, r.s || null, 1, "Durum değişikliği");
-  saveMsg(`${p.code} güncellendi.`);
+
+  const msg = {
+    warranty: `${p.code} takıldı — eski parçayı YARIN depoya ver (Arızalı İade).`,
+    ypa: `${p.code} YPA listesinde — 24 saat içinde depoya.`,
+    safeReturn: `${p.code} sağlam iade listesinde — depoya geri ver.`,
+    active: `${p.code} aktif stoğa alındı.`,
+    history: prev === "active"
+      ? `${p.code} kapatıldı — eski parça müşteride kaldı, stoktan düştü.`
+      : `${p.code} arşive taşındı.`
+  }[next] || `${p.code} güncellendi.`;
+
+  saveMsg(msg);
   if (r?.e && card) floatXP(`+${r.e} EXP`, card);
 }
 
 function deliverToWH(id) {
   const p = findP(id); if (!p) return;
   const prev = p.state;
-  if (prev === "ypa" && app.lastYpaClosureDate === todayKey()) { 
-    flash("Bugün 1 YPA hakkı var.", true); 
-    return; 
-  }
   const card = document.querySelector(`[data-card-id="${id}"]`);
-  if (card) { 
-    card.classList.add("delivering"); 
-    setTimeout(() => finishDeliver(id, prev), 520); 
-    return; 
+  if (card) {
+    card.classList.add("delivering");
+    setTimeout(() => finishDeliver(id, prev), 520);
+    return;
   }
   finishDeliver(id, prev);
 }
@@ -436,12 +531,24 @@ function deliverToWH(id) {
 function finishDeliver(id, prev) {
   const p = findP(id); if (!p) return;
   const now = Date.now();
-  if (prev === "ypa") app.lastYpaClosureDate = todayKey();
-  p.timestamps.warehouseDeliveredAt = now; 
-  p.history.push({ state: "warehouseDelivered", at: now }); 
+  p.timestamps.warehouseDeliveredAt = now;
+  p.history.push({ state: "warehouseDelivered", at: now });
   p.state = "history";
   award(prev === "ypa" ? 180 : 120, 90, "strength", 1, "Depo teslimi");
-  saveMsg(`${p.code} depoya teslim.`);
+  if (prev === "ypa" || prev === "warranty") autoQuest("ypaHunter");
+  saveMsg(`${p.code} depoya teslim edildi. ✅`);
+}
+
+/* Depoya iade için son teslim zamanı:
+   - Arızalı İade (garantili değişim): takıldığı günün ERTESİ günü 23:59
+   - YPA: başlangıçtan itibaren 24 saat */
+function returnDeadline(p) {
+  if (p.state === "ypa") return (p.timestamps.ypaStartedAt || p.createdAt) + DAY_MS;
+  if (p.state === "warranty") {
+    const m = new Date(p.timestamps.mountedAt || p.createdAt);
+    return new Date(m.getFullYear(), m.getMonth(), m.getDate() + 1, 23, 59, 59).getTime();
+  }
+  return null;
 }
 
 function award(exp, gold, stat, amt, reason) {
@@ -494,13 +601,17 @@ function showLevelUp() {
   toast(`⬆ Level ${app.profile.level}!`, "success", 5000);
 }
 
-function completeQuest(key) {
-  if (app.quests.completed[key]) { flash("Bu görev tamamlandı."); return; }
-  sfx.play("success");
+/* Görevler gerçek işlerle otomatik tamamlanır:
+   stockEntry → gün içinde ilk stok girişi
+   ypaHunter  → bir iade parçasının depoya teslimi */
+function autoQuest(key) {
+  if (app.quests.completed[key]) return;
   const r = { stockEntry: { e: 50, g: 20, s: "agility" }, ypaHunter: { e: 150, g: 80, s: "strength" } }[key];
   app.quests.completed[key] = true;
   if (r) award(r.e, r.g, r.s, 1, "Görev");
-  saveMsg("Görev tamamlandı! 🎉");
+  sfx.play("success");
+  toast(`🎯 Görev tamamlandı! +${r.e} EXP / +${r.g} Gold`, "success", 4000);
+  renderQuests();
 }
 
 function openAudit() {
@@ -559,17 +670,16 @@ function completeWeekly() {
 
 function evalPenalties() {
   const now = Date.now(), was = app.penaltyActive;
-  app.penaltyActive = app.penaltyActive || app.parts.some(p => 
-    (p.state === "ypa" && p.timestamps.ypaStartedAt && now - p.timestamps.ypaStartedAt > DAY_MS) || 
-    (p.state === "warranty" && p.timestamps.mountedAt && now - p.timestamps.mountedAt > THREE_DAYS)
-  );
+  app.penaltyActive = app.penaltyActive || app.parts.some(p => {
+    const dl = returnDeadline(p);
+    return dl !== null && now > dl;
+  });
   if (app.penaltyActive !== was) save();
 }
 
 function resetDaily() {
   if (app.quests.date === todayKey()) return;
-  app.quests = { date: todayKey(), completed: {} }; 
-  app.lastYpaClosureDate = null; 
+  app.quests = { date: todayKey(), completed: {} };
   save();
 }
 
@@ -637,14 +747,28 @@ function renderCard(p) {
     ["Arşiv", p.timestamps.archivedAt]
   ].filter(([, v]) => v);
   
-  return `<article class="part-card ${p.state}" data-card-id="${p.id}"><div class="part-head"><div><span class="part-code">${p.code}</span><small>${fmtDate(p.createdAt)}</small></div><span class="state-pill">${stateLabels[p.state]}</span></div>${p.note ? `<div class="part-note">📝 ${esc(p.note)}</div>` : ""}<div class="meta-list">${meta.map(([l, v]) => `<span>${l}: <b>${fmtDate(v)}</b></span>`).join("")}</div>${p.state === "ypa" ? `<div class="countdown" data-cd="${p.id}">${fmtCD(p)}</div>` : ""}<div class="card-actions">${renderActs(p)}</div></article>`;
+  const name = p.note || app.catalog[p.code] || "";
+  const showCD = p.state === "ypa" || p.state === "warranty";
+  return `<article class="part-card ${p.state}" data-card-id="${p.id}"><div class="part-head"><div><span class="part-code">${p.code}</span>${name ? `<span class="part-name">${esc(name)}</span>` : ""}<small>${fmtDate(p.createdAt)}</small></div><span class="state-pill">${stateLabels[p.state]}</span></div><div class="meta-list">${meta.map(([l, v]) => `<span>${l}: <b>${fmtDate(v)}</b></span>`).join("")}</div>${showCD ? `<div class="countdown" data-cd="${p.id}">${fmtCD(p)}</div>` : ""}<div class="card-actions">${renderActs(p)}</div></article>`;
 }
 
+/* İş akışı butonları:
+   Aktif parça → nasıl kullanıldığını seç
+   İade bekleyen parça → depoya teslim et / geri al */
 function renderActs(p) {
-  const btns = [["active", "Aktif"], ["warranty", "Garanti"], ["history", "Kapat"], ["ypa", "YPA"], ["safeReturn", "İade"]].filter(([s]) => s !== p.state).map(([s, l]) => `<button data-id="${p.id}" data-state="${s}">${l}</button>`);
-  const util = [`<button data-copy="${p.code}">📋 Kod</button>`];
-  const dlv = ["warranty", "ypa", "safeReturn"].includes(p.state) ? [`<button data-deliver="${p.id}">🚛 Teslim</button>`] : [];
-  return [...util, ...btns, ...dlv].join("");
+  const acts = [`<button data-copy="${p.code}">📋 Kod</button>`];
+  if (p.state === "active") {
+    acts.push(`<button data-id="${p.id}" data-state="warranty" class="act-warn">🔧 Garantili Takıldı</button>`);
+    acts.push(`<button data-id="${p.id}" data-state="history" class="act-close">💰 Garanti Harici Takıldı</button>`);
+    acts.push(`<button data-id="${p.id}" data-state="ypa" class="act-ypa">📦 Kırık / Arızalı Geldi</button>`);
+    acts.push(`<button data-id="${p.id}" data-state="safeReturn" class="act-safe">↩ Kullanmadım</button>`);
+  } else if (["warranty", "ypa", "safeReturn"].includes(p.state)) {
+    acts.push(`<button data-deliver="${p.id}">🚛 Depoya Teslim</button>`);
+    acts.push(`<button data-id="${p.id}" data-state="active">↺ Geri Al</button>`);
+  } else if (p.state === "history") {
+    acts.push(`<button data-id="${p.id}" data-state="active">↺ Stoğa Geri Al</button>`);
+  }
+  return acts.join("");
 }
 
 function setFilter(f) {
@@ -676,13 +800,20 @@ function tickCD() {
   document.querySelectorAll("[data-cd]").forEach(n => {
     const p = findP(n.dataset.cd); if (!p) return;
     n.textContent = fmtCD(p);
-    const r = p.timestamps.ypaStartedAt + DAY_MS - Date.now();
+    const dl = returnDeadline(p);
+    if (dl === null) return;
+    const r = dl - Date.now();
     n.classList.toggle("hot", r > 0 && r < 3600000);
+    n.classList.toggle("overdue", r <= 0);
   });
 }
-function fmtCD(p) { 
-  const r = Math.max(0, p.timestamps.ypaStartedAt + DAY_MS - Date.now()); 
-  return `⏱ ${pad(Math.floor(r / 3600000))}:${pad(Math.floor((r % 3600000) / 60000))}:${pad(Math.floor((r % 60000) / 1000))}`; 
+function fmtCD(p) {
+  const dl = returnDeadline(p);
+  if (dl === null) return "";
+  const r = dl - Date.now();
+  if (r <= 0) return "⚠️ GECİKTİ — hemen depoya!";
+  const h = Math.floor(r / 3600000);
+  return `⏱ ${pad(h)}:${pad(Math.floor((r % 3600000) / 60000))}:${pad(Math.floor((r % 60000) / 1000))} kaldı`;
 }
 
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(app)); }
@@ -755,6 +886,7 @@ async function importJson(e) {
 }
 
 function vibrate(pattern) {
+  if (app && app.settings && app.settings.vibration === false) return;
   try { navigator.vibrate?.(pattern); } catch (e) {}
 }
 
@@ -826,6 +958,35 @@ function detectIOS() {
 function initOffline() {
   window.addEventListener("online", () => toast("🌐 Çevrimiçi moda geçildi", "success"));
   window.addEventListener("offline", () => toast("🔌 Çevrimdışı çalışılıyor", "warn"));
+}
+
+function syncSettingsUI() {
+  const set = (id, v) => { const el = document.querySelector(id); if (el) el.checked = v; };
+  set("#setSound", app.settings.sound);
+  set("#setVibration", app.settings.vibration);
+  set("#setNotif", app.settings.notifications && ("Notification" in window) && Notification.permission === "granted");
+}
+
+/* Depoya iadesi geciken/yaklaşan parçalar için bildirim */
+async function checkReturnReminders() {
+  try {
+    if (!app.settings.notifications) return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const due = app.parts.filter(p => p.state === "ypa" || p.state === "warranty");
+    if (!due.length) return;
+    const now = Date.now();
+    const overdue = due.filter(p => now > (returnDeadline(p) || Infinity));
+    const title = overdue.length
+      ? `⚠️ ${overdue.length} parçanın iadesi GECİKTİ!`
+      : `📦 ${due.length} parça depoya iade bekliyor`;
+    const body = due.slice(0, 5)
+      .map(p => `${p.code}${p.note ? " · " + p.note : ""} (${stateLabels[p.state]})`)
+      .join("\n");
+    const reg = await navigator.serviceWorker?.ready;
+    if (reg?.active) {
+      reg.active.postMessage({ type: "SHOW_NOTIFICATION", title, body, tag: "return-reminder" });
+    }
+  } catch (e) { console.warn("Bildirim hatası:", e); }
 }
 
 const BK_KEY = "shadowStock.backupReminder";
