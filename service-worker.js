@@ -1,5 +1,5 @@
-/* Shadow Stock — Service Worker v4.4 */
-const CACHE_NAME = "shadow-stock-v4.4";
+/* Stok Takip — Service Worker v4.5 */
+const CACHE_NAME = "stok-takip-v4.5";
 const META_CACHE = "dragon-stock-meta"; // sayfa ile SW arasında paylaşılan küçük durum
 const APP_ASSETS = [
   "./",
@@ -50,7 +50,12 @@ self.addEventListener("fetch", event => {
           }
           return response;
         })
-        .catch(() => cached || caches.match("./index.html"));
+        .catch(() => {
+          if (cached) return cached;
+          // Çevrimdışıyken yalnızca sayfa gezinmeleri index'e düşsün
+          if (event.request.mode === "navigate") return caches.match("./index.html");
+          return Response.error();
+        });
       return cached || fetched;
     })
   );
@@ -108,7 +113,7 @@ self.addEventListener("message", event => {
   if (data.type === "SHOW_NOTIFICATION") {
     const { title, body, tag, icon } = data;
     event.waitUntil(
-      self.registration.showNotification(title || "Shadow Stock", {
+      self.registration.showNotification(title || "Stok Takip", {
         body: body || "",
         icon: icon || "./icons/system-icon.svg",
         badge: "./icons/system-icon.svg",
@@ -123,7 +128,7 @@ self.addEventListener("message", event => {
 
 self.addEventListener("push", event => {
   const data = event.data?.json() ?? {};
-  const title = data.title || "Shadow Stock";
+  const title = data.title || "Stok Takip";
   const options = {
     body:  data.body  || "Bildirim alındı.",
     icon:  data.icon  || "./icons/icon-192.png",

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   Shadow Stock — Dragon Evolution v3.5 (Master Edition)
+   Stok Takip — Dragon Evolution v3.5 (Master Edition)
    - Integrated Web Audio API Sound FX System (No external files needed)
    - Enhanced Barcode/QR Laser Scanning & State Management
    - Fixed all known edge cases, duplicate listeners, and optimized loops
@@ -44,6 +44,10 @@ const sfx = {
   init() {
     if (!this.ctx) {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // Mobil tarayıcılar AudioContext'i askıya alabilir; kullanıcı etkileşiminde devam ettir
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume().catch(() => {});
     }
   },
   play(type) {
@@ -330,6 +334,9 @@ function bindEvents() {
   const exportBtn = document.querySelector("#exportBtn");
   if (exportBtn) exportBtn.addEventListener("click", () => { sfx.play("success"); exportJson(); });
 
+  const shareBtn = document.querySelector("#shareBtn");
+  if (shareBtn) shareBtn.addEventListener("click", () => { sfx.play("click"); shareReturnList(); });
+
   const clearHistoryBtn = document.querySelector("#clearHistoryBtn");
   if (clearHistoryBtn) {
     clearHistoryBtn.addEventListener("click", () => {
@@ -351,14 +358,30 @@ function bindEvents() {
   });
   
   if (els.ib) {
-    els.ib.addEventListener("click", async () => { 
-      if (!deferredInstallPrompt) return; 
-      deferredInstallPrompt.prompt(); 
-      await deferredInstallPrompt.userChoice; 
-      deferredInstallPrompt = null; 
-      els.ib.classList.add("hidden"); 
+    els.ib.addEventListener("click", async () => {
+      if (!deferredInstallPrompt) {
+        // iOS'ta kurulum istemi yok — kullanıcıya yolu göster
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+          toast("📲 Kurulum: Safari'de Paylaş (⬆) → \"Ana Ekrana Ekle\"", "info", 8000);
+        }
+        return;
+      }
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      els.ib.classList.add("hidden");
     });
   }
+
+  // Arka planda bekleyen PWA sabah tekrar öne gelince gün dönümünü işle
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    resetDaily();
+    evalPenalties();
+    checkWeekly();
+    render();
+    morningCheck();
+  });
 }
 
 async function registerSW() {
@@ -379,22 +402,31 @@ async function requestPersistentStorage() {
   } catch (e) {}
 }
 
+/* DİKKAT: AUTO_NOTES, loadState()'ten ÖNCE tanımlanmalı.
+   normalize() bu sabiti kullanır; sonra tanımlanırsa açılışta
+   ReferenceError oluşur ve tüm kayıtlar boş durumla değiştirilirdi. */
+const AUTO_NOTES = ["Barkod Tarayıcı İle Eklendi", "Barkod ile okutuldu"];
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) { 
-      const s = initState(); 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); 
-      return s; 
+    if (!raw) {
+      const s = initState();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+      return s;
     }
     return normalize(JSON.parse(raw));
-  } catch(e) { 
-    return initState(); 
+  } catch(e) {
+    console.error("Durum yüklenemedi, yedek durum kullanılıyor:", e);
+    // Bozuk/okunamayan veriyi kurtarma anahtarına taşı — üzerine yazılıp kaybolmasın
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) localStorage.setItem(STORAGE_KEY + ".rescue", raw);
+    } catch (_) {}
+    return initState();
   }
 }
 app = loadState();
-
-const AUTO_NOTES = ["Barkod Tarayıcı İle Eklendi", "Barkod ile okutuldu"];
 
 function initState() {
   return {
@@ -651,7 +683,7 @@ function openAudit() {
   if (!els.asu || !els.acl || !els.ad) return;
   const parts = app.parts.filter(p => activeStates.includes(p.state));
   els.asu.textContent = `${parts.length} parça sayılacak.`;
-  els.acl.innerHTML = parts.length ? parts.map(p => `<label class="audit-item"><span><strong>${p.code}</strong><small>${stateLabels[p.state]}${p.note ? " · " + p.note : ""}</small></span><input type="checkbox" /></label>`).join("") : '<div class="empty-state">Sayılacak parça yok.</div>';
+  els.acl.innerHTML = parts.length ? parts.map(p => `<label class="audit-item"><span><strong>${p.code}</strong><small>${stateLabels[p.state]}${p.note ? " · " + esc(p.note) : ""}</small></span><input type="checkbox" /></label>`).join("") : '<div class="empty-state">Sayılacak parça yok.</div>';
   els.ad.showModal();
 }
 
@@ -684,7 +716,7 @@ function openWeekly() {
   if (!els.wsu || !els.wcl || !els.wd) return;
   const parts = app.parts.filter(p => activeStates.includes(p.state));
   els.wsu.textContent = `${parts.length} parçayı doğrula.`;
-  els.wcl.innerHTML = parts.length ? parts.map(p => `<label class="audit-item"><span><strong>${p.code}</strong><small>${stateLabels[p.state]}${p.note ? " · " + p.note : ""}</small></span><input type="checkbox" /></label>`).join("") : '<div class="empty-state">Sayım gerekmez.</div>';
+  els.wcl.innerHTML = parts.length ? parts.map(p => `<label class="audit-item"><span><strong>${p.code}</strong><small>${stateLabels[p.state]}${p.note ? " · " + esc(p.note) : ""}</small></span><input type="checkbox" /></label>`).join("") : '<div class="empty-state">Sayım gerekmez.</div>';
   els.wd.showModal();
 }
 function completeWeekly() {
@@ -907,6 +939,36 @@ function esc(s) {
   return d.innerHTML; 
 }
 
+/* İade bekleyen parçaların listesini paylaş (WhatsApp/SMS vb.)
+   Web Share API yoksa panoya kopyalanır. */
+async function shareReturnList() {
+  const due = app.parts.filter(p => ["warranty", "ypa", "safeReturn"].includes(p.state));
+  if (!due.length) { flash("Paylaşılacak iade parçası yok — liste temiz. ✅"); return; }
+  const now = Date.now();
+  const lines = due.map(p => {
+    const dl = returnDeadline(p);
+    const late = dl !== null && now > dl;
+    const name = p.note || app.catalog[p.code] || "";
+    return `• ${p.code}${name ? " — " + name : ""} (${stateLabels[p.state]})${late ? " ⚠️ GECİKTİ" : ""}`;
+  });
+  const text = `📦 Depoya İade Listesi — ${fmtDate(now)}\n${lines.join("\n")}\nToplam: ${due.length} parça`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: "Depoya İade Listesi", text });
+      flash("Liste paylaşıldı. 📨");
+    } else {
+      await navigator.clipboard.writeText(text);
+      toast("📋 Liste panoya kopyalandı — istediğin yere yapıştır.", "success");
+    }
+  } catch (e) {
+    if (e && e.name === "AbortError") return; // kullanıcı paylaşımı iptal etti
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("📋 Liste panoya kopyalandı.", "success");
+    } catch (_) { err("Paylaşım desteklenmiyor."); }
+  }
+}
+
 async function copyCode(c) {
   try { 
     await navigator.clipboard.writeText(c); 
@@ -920,16 +982,25 @@ function exportJson() {
   const b = new Blob([JSON.stringify({ appState: app }, null, 2)], { type: "application/json" });
   const u = URL.createObjectURL(b), a = document.createElement("a");
   a.href = u; a.download = `ejderha-stok-${todayKey()}.json`; a.click(); markBackupDone();
+  setTimeout(() => URL.revokeObjectURL(u), 5000);
+  toast("📤 Yedek indirildi. Dosyayı güvenli bir yerde sakla.", "success");
 }
 
 async function importJson(e) {
   const [f] = e.target.files; if (!f) return;
-  try { 
-    const t = await f.text(), d = JSON.parse(t); 
-    app = normalize(d.appState || d); 
-    render(); 
-    saveMsg("Veriler başarıyla aktarıldı."); 
-  } catch(err) { flash("Dosya okunamadı.", true); }
+  e.target.value = ""; // aynı dosya tekrar seçilebilsin
+  try {
+    const t = await f.text(), d = JSON.parse(t);
+    const incoming = normalize(d.appState || d);
+    const curN = app.parts.length, inN = incoming.parts.length;
+    if (!confirm(`Yedek yüklenecek: ${inN} parça, Lv.${incoming.profile.level}.\n\nMevcut veriler (${curN} parça, Lv.${app.profile.level}) ÜZERİNE YAZILACAK.\n\nDevam edilsin mi?`)) {
+      flash("Yükleme iptal edildi.");
+      return;
+    }
+    app = incoming;
+    saveMsg("✅ Veriler başarıyla aktarıldı.");
+    updateDragonVisual();
+  } catch(err) { flash("Dosya okunamadı — geçerli bir yedek dosyası seç.", true); }
 }
 
 function vibrate(pattern) {
@@ -1066,6 +1137,10 @@ async function morningCheck() {
     const due = app.parts.filter(p => p.state === "warranty" || p.state === "ypa");
     if (!due.length) return;
 
+    // Aynı gün içinde tekrar tekrar toast gösterme (visibilitychange ile de çağrılıyor)
+    if (morningCheck._day === todayKey()) return;
+    morningCheck._day = todayKey();
+
     // Uygulama içi hatırlatma — bildirim izninden bağımsız, her zaman görünür.
     const overdueNow = due.filter(p => Date.now() > (returnDeadline(p) || Infinity));
     toast(
@@ -1124,6 +1199,11 @@ const BK_KEY = "shadowStock.backupReminder";
 function checkBackup() {
   const l = localStorage.getItem(BK_KEY);
   if (!l) { localStorage.setItem(BK_KEY, String(Date.now())); return; }
+  // 7 günden eski yedek + kayıtlı parça varsa hatırlat
+  const age = Date.now() - (+l || 0);
+  if (age > 7 * DAY_MS && app.parts.length > 0) {
+    toast("💾 Son yedeğin 1 haftadan eski — \"Veri Yedekle (JSON)\" ile yedek al.", "warn", 8000);
+  }
 }
 function markBackupDone() { localStorage.setItem(BK_KEY, String(Date.now())); }
 

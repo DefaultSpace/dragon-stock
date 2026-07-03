@@ -1,31 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Dragon Stock icon">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Stok Takip icon">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="38%" r="78%">
+    <radialGradient id="bg" cx="50%" cy="36%" r="80%">
       <stop offset="0%" stop-color="#1a1440"/>
       <stop offset="55%" stop-color="#0a0a24"/>
       <stop offset="100%" stop-color="#030310"/>
     </radialGradient>
-    <radialGradient id="aura" cx="50%" cy="46%" r="46%">
-      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.30"/>
+    <radialGradient id="aura" cx="50%" cy="44%" r="48%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.32"/>
       <stop offset="60%" stop-color="#00f5ff" stop-opacity="0.10"/>
       <stop offset="100%" stop-color="#00f5ff" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="eggGrad" x1="196" y1="120" x2="330" y2="420" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffe9a8"/>
-      <stop offset="0.45" stop-color="#f8c550"/>
-      <stop offset="0.82" stop-color="#e08b28"/>
-      <stop offset="1" stop-color="#b95f14"/>
+    <linearGradient id="boxTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3ee8ff"/>
+      <stop offset="1" stop-color="#12b6e6"/>
     </linearGradient>
-    <linearGradient id="crackGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#a8fdff"/>
-      <stop offset="1" stop-color="#00c8f5"/>
+    <linearGradient id="boxLeft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1786c9"/>
+      <stop offset="1" stop-color="#0d5aa0"/>
+    </linearGradient>
+    <linearGradient id="boxRight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#4c1d95"/>
+    </linearGradient>
+    <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff3b0"/>
+      <stop offset="0.45" stop-color="#ffb020"/>
+      <stop offset="1" stop-color="#ff5a1f"/>
     </linearGradient>
     <filter id="glowCyan" x="-60%" y="-60%" width="220%" height="220%">
       <feGaussianBlur stdDeviation="7" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="glowCrack" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="10" result="b"/>
+    <filter id="glowFlame" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
     <filter id="glowSoft" x="-60%" y="-60%" width="220%" height="220%">
@@ -39,39 +46,49 @@
   <rect width="512" height="512" fill="url(#aura)"/>
 
   <!-- Scanner viewfinder corner brackets -->
-  <g stroke="#00f5ff" stroke-width="14" stroke-linecap="round" fill="none" filter="url(#glowCyan)" opacity="0.92">
-    <path d="M118 166v-48h48"/>
-    <path d="M394 166v-48h-48"/>
-    <path d="M118 366v48h48"/>
-    <path d="M394 366v48h-48"/>
+  <g stroke="#00f5ff" stroke-width="14" stroke-linecap="round" fill="none" filter="url(#glowCyan)" opacity="0.9">
+    <path d="M118 158v-46h46"/>
+    <path d="M394 158v-46h-46"/>
+    <path d="M118 374v46h46"/>
+    <path d="M394 374v46h-46"/>
   </g>
 
-  <!-- Egg shadow -->
-  <ellipse cx="256" cy="412" rx="92" ry="16" fill="#000" opacity="0.5"/>
+  <!-- Ground shadow -->
+  <ellipse cx="256" cy="402" rx="118" ry="20" fill="#000" opacity="0.5"/>
 
-  <!-- Dragon egg -->
-  <path d="M256 112
-           C 322 112 352 208 352 282
-           C 352 356 312 408 256 408
-           C 200 408 160 356 160 282
-           C 160 208 190 112 256 112 Z"
-        fill="url(#eggGrad)"/>
+  <!-- Isometric stacked box (inventory) -->
+  <!-- Bottom box -->
+  <g>
+    <path d="M256 292 L360 342 L360 356 L256 406 L152 356 L152 342 Z" fill="url(#boxLeft)"/>
+    <path d="M256 258 L360 308 L360 342 L256 292 L152 342 L152 308 Z" fill="url(#boxRight)"/>
+    <path d="M256 258 L360 308 L256 356 L152 308 Z" fill="url(#boxTop)"/>
+  </g>
+  <!-- Top box -->
+  <g>
+    <path d="M256 214 L326 248 L326 280 L256 314 L186 280 L186 248 Z" fill="url(#boxLeft)"/>
+    <path d="M256 190 L326 224 L326 248 L256 282 L186 248 L186 224 Z" fill="url(#boxRight)"/>
+    <path d="M256 190 L326 224 L256 258 L186 224 Z" fill="url(#boxTop)"/>
+  </g>
+  <!-- Box edge highlight -->
+  <path d="M256 190 L256 258 M256 258 L256 356" stroke="#a8fdff" stroke-width="4" opacity="0.35"/>
 
-  <!-- Egg shine -->
-  <path d="M208 162 C 222 136 242 126 256 126 C 234 138 220 158 212 186 C 206 206 192 204 194 186 C 195 177 201 172 208 162 Z"
-        fill="#ffffff" opacity="0.55"/>
-  <ellipse cx="296" cy="362" rx="30" ry="17" fill="#7a3c0a" opacity="0.3" transform="rotate(-16 296 362)"/>
-
-  <!-- Glowing hatching crack -->
-  <path d="M258 178 L 234 232 L 274 224 L 246 286 L 290 274 L 260 342"
-        fill="none" stroke="url(#crackGrad)" stroke-width="14"
-        stroke-linecap="round" stroke-linejoin="round" filter="url(#glowCrack)"/>
-  <path d="M234 232 L 208 252 M 290 274 L 314 296"
-        fill="none" stroke="url(#crackGrad)" stroke-width="9"
-        stroke-linecap="round" filter="url(#glowCrack)" opacity="0.8"/>
+  <!-- Dragon flame rising from the stock -->
+  <path d="M256 176
+           C 236 150 252 128 246 104
+           C 274 122 292 150 292 182
+           C 306 168 310 148 306 134
+           C 328 156 336 190 322 222
+           C 312 246 286 258 256 258
+           C 226 258 202 240 196 214
+           C 192 194 200 174 214 162
+           C 214 182 232 188 256 176 Z"
+        fill="url(#flame)" filter="url(#glowFlame)"/>
+  <!-- Inner flame core -->
+  <path d="M256 200 C 248 186 256 172 254 158 C 270 172 276 192 268 210 C 262 224 250 224 244 214 C 240 208 246 204 256 200 Z"
+        fill="#fff6d0" opacity="0.9"/>
 
   <!-- Sparkles -->
-  <path d="M126 250 l 7 19 19 7 -19 7 -7 19 -7 -19 -19 -7 19 -7 Z" fill="#00f5ff" filter="url(#glowSoft)" opacity="0.95"/>
-  <path d="M390 218 l 6 16 16 6 -16 6 -6 16 -6 -16 -16 -6 16 -6 Z" fill="#f8c550" filter="url(#glowSoft)"/>
-  <path d="M352 128 l 4 12 12 4 -12 4 -4 12 -4 -12 -12 -4 12 -4 Z" fill="#a8fdff" filter="url(#glowSoft)" opacity="0.85"/>
+  <path d="M136 246 l 7 18 18 7 -18 7 -7 18 -7 -18 -18 -7 18 -7 Z" fill="#00f5ff" filter="url(#glowSoft)" opacity="0.95"/>
+  <path d="M384 224 l 6 15 15 6 -15 6 -6 15 -6 -15 -15 -6 15 -6 Z" fill="#a855f7" filter="url(#glowSoft)"/>
+  <path d="M360 300 l 4 11 11 4 -11 4 -4 11 -4 -11 -11 -4 11 -4 Z" fill="#a8fdff" filter="url(#glowSoft)" opacity="0.85"/>
 </svg>

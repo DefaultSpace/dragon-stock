@@ -1,6 +1,6 @@
 {
-  "name": "Shadow Stock Sistemi",
-  "short_name": "Shadow Stock",
+  "name": "Stok Takip",
+  "short_name": "Stok Takip",
   "description": "Beyaz eşya servisleri için mobil stok takip ve yönetim sistemi.",
   "start_url": "./",
   "scope": "./",
