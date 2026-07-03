@@ -1119,6 +1119,12 @@ input, textarea {
   border-color: var(--cyan-dim);
   color: var(--cyan);
 }
+.card-actions button.act-delete {
+  background: rgba(255, 45, 90, 0.06);
+  border-color: rgba(255, 45, 90, 0.35);
+  color: var(--red);
+  margin-left: auto;
+}
 
 .empty-state {
   padding: 22px 14px;

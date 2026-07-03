@@ -197,8 +197,7 @@ function bindEvents() {
       sfx.play("laser");
       const c = String(Math.floor(10000000 + Math.random() * 90000000));
       els.scd.close();
-      els.pi.value = c;
-      addPart(c, "Barkod Tarayıcı İle Eklendi");
+      confirmAndAdd(c);
     });
   }
 
@@ -495,6 +494,24 @@ function addPart(val, note) {
   floatXP("+20 EXP", els.pi);
 }
 
+/* Tarama sonrası doğrulama: okunan kod direkt eklenmez.
+   Kod (ve varsa hafızadaki adı) gösterilip onay istenir. */
+function confirmAndAdd(code) {
+  const c = ("" + code).trim();
+  if (els.pi) els.pi.value = c;
+  const typed = els.pn?.value?.trim() || "";
+  const known = app.catalog[c];
+  if (els.pn && known && !typed) els.pn.value = known;
+  const shown = typed || known || "";
+  const label = shown ? `${c} — ${shown}` : c;
+  if (confirm(`Okunan kod:\n\n${label}\n\nBu kod doğru mu? Listeye eklensin mi?`)) {
+    addPart(c, els.pn?.value?.trim() || "");
+  } else {
+    flash("Ekleme iptal edildi. Kodu elle kontrol edip ekleyebilirsin.", true);
+    if (els.pi) els.pi.focus();
+  }
+}
+
 function changeState(id, next) {
   sfx.play("click");
   const p = findP(id); if (!p) return;
@@ -741,6 +758,7 @@ function renderStock() {
   
   els.sc.querySelectorAll("[data-state]").forEach(b => b.addEventListener("click", () => changeState(b.dataset.id, b.dataset.state)));
   els.sc.querySelectorAll("[data-deliver]").forEach(b => b.addEventListener("click", () => deliverToWH(b.dataset.deliver)));
+  els.sc.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => deletePart(b.dataset.delete)));
   els.sc.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => copyCode(b.dataset.copy)));
   updateSummary();
 }
@@ -784,7 +802,17 @@ function renderActs(p) {
   } else if (p.state === "history") {
     acts.push(`<button data-id="${p.id}" data-state="active">↺ Stoğa Geri Al</button>`);
   }
+  acts.push(`<button data-delete="${p.id}" class="act-delete">🗑️ Sil</button>`);
   return acts.join("");
+}
+
+function deletePart(id) {
+  const p = findP(id); if (!p) return;
+  if (!confirm(`${p.code}${p.note ? " · " + p.note : ""} silinsin mi?\n\nBu parça listeden tamamen kaldırılacak. (Parça hafızasındaki adı korunur.)`)) return;
+  app.parts = app.parts.filter(x => x.id !== id);
+  vibrate([20, 40, 20]);
+  sfx.play("click");
+  saveMsg(`${p.code} silindi.`);
 }
 
 function setFilter(f) {
@@ -951,8 +979,7 @@ async function startScanner() {
         if (digits) {
           sfx.play("laser");
           els.scd.close();
-          if (els.pi) els.pi.value = digits;
-          addPart(digits, "Barkod ile okutuldu");
+          confirmAndAdd(digits);
           return;
         }
       }
