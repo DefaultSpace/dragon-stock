@@ -104,6 +104,7 @@ const els = {};
 let app, activeFilter = "all", searchTerm = "", deferredInstallPrompt = null;
 
 document.addEventListener("DOMContentLoaded", () => {
+  requestPersistentStorage();
   cacheEls();
   registerSW();
   bindEvents();
@@ -119,6 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateDragonVisual();
   morningCheck();
   setupPeriodicReminder();
+  updateMetaCache();
 });
 
 function cacheEls() {
@@ -364,6 +366,18 @@ async function registerSW() {
   if ("serviceWorker" in navigator) {
     try { await navigator.serviceWorker.register("./service-worker.js"); } catch(e) {}
   }
+}
+
+/* Kalıcı Depolama: tarayıcının arka planda kapatınca localStorage'ı
+   silmesini engeller. İzin verilmezse veriler bellek baskısında uçabilir.
+   Bu, "uygulamayı kapatınca kodlar sıfırlanıyor" sorununun asıl çözümü. */
+async function requestPersistentStorage() {
+  try {
+    if (!navigator.storage || !navigator.storage.persist) return;
+    const already = await navigator.storage.persisted();
+    if (already) return;
+    await navigator.storage.persist();
+  } catch (e) {}
 }
 
 function loadState() {
@@ -1017,18 +1031,31 @@ async function setupPeriodicReminder() {
   } catch (e) {}
 }
 
-/* Uygulama açılınca: saat 9'u geçtiyse ve bugün hatırlatılmadıysa sor */
+/* Uygulama açılınca: saat 9'u geçtiyse ve iade bekleyen parça varsa hatırlat.
+   Sistem bildirimi izin gerektirir; uygulama içi hatırlatma her zaman gösterilir. */
 async function morningCheck() {
   try {
+    if (new Date().getHours() < 9) return;
+    const due = app.parts.filter(p => p.state === "warranty" || p.state === "ypa");
+    if (!due.length) return;
+
+    // Uygulama içi hatırlatma — bildirim izninden bağımsız, her zaman görünür.
+    const overdueNow = due.filter(p => Date.now() > (returnDeadline(p) || Infinity));
+    toast(
+      overdueNow.length
+        ? `⚠️ ${overdueNow.length} iade GECİKTİ! Arızalı iadeleri depoya verdin mi?`
+        : `🌅 Günaydın! ${due.length} parça depoya iade bekliyor.`,
+      overdueNow.length ? "error" : "info",
+      8000
+    );
+
+    // Sistem bildirimi yalnızca izin açıksa ve günde bir kez.
     if (!app.settings.notifications) return;
     if (!("Notification" in window) || Notification.permission !== "granted") return;
-    if (new Date().getHours() < 9) return;
     const meta = await readMeta();
     if (meta.lastReminderDate === todayKey()) return;
-    const due = app.parts.filter(p => p.state === "warranty" || p.state === "ypa");
     await updateMetaCache({ lastReminderDate: todayKey() });
-    if (!due.length) return;
-    const overdue = due.filter(p => Date.now() > (returnDeadline(p) || Infinity));
+    const overdue = overdueNow;
     const body = due.slice(0, 5)
       .map(p => `${p.code}${p.note ? " · " + p.note : ""} (${stateLabels[p.state]})`)
       .join("\n");

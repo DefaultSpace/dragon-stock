@@ -1,5 +1,5 @@
-/* Shadow Stock — Service Worker v4.2 */
-const CACHE_NAME = "shadow-stock-v4.2";
+/* Shadow Stock — Service Worker v4.3 */
+const CACHE_NAME = "shadow-stock-v4.3";
 const META_CACHE = "dragon-stock-meta"; // sayfa ile SW arasında paylaşılan küçük durum
 const APP_ASSETS = [
   "./",
