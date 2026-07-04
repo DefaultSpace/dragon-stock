@@ -1,5 +1,5 @@
-/* Stok Takip — Service Worker v4.7 */
-const CACHE_NAME = "stok-takip-v4.7";
+/* Stok Takip — Service Worker v4.8 */
+const CACHE_NAME = "stok-takip-v4.8";
 const META_CACHE = "dragon-stock-meta"; // sayfa ile SW arasında paylaşılan küçük durum
 const APP_ASSETS = [
   "./",
@@ -107,7 +107,7 @@ async function morningReminder() {
   await writeMeta(meta);
 }
 
-/* ─── Push Notification Support ──────────────────────────────────── */
+/* ─── Bildirim (sayfadan gönderilen mesajla) ─────────────────────── */
 self.addEventListener("message", event => {
   const data = event.data || {};
   if (data.type === "SHOW_NOTIFICATION") {
@@ -124,21 +124,6 @@ self.addEventListener("message", event => {
       })
     );
   }
-});
-
-self.addEventListener("push", event => {
-  const data = event.data?.json() ?? {};
-  const title = data.title || "Stok Takip";
-  const options = {
-    body:  data.body  || "Bildirim alındı.",
-    icon:  data.icon  || "./icons/icon-192.png",
-    badge: "./icons/icon-192.png",
-    tag:   data.tag   || "shadow-stock",
-    renotify: true,
-    vibrate: [200, 100, 200],
-    data: { url: data.url || "/" }
-  };
-  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", event => {

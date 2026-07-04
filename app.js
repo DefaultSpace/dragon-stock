@@ -1142,7 +1142,19 @@ function fmtCD(p) {
 }
 
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+    save._failed = false;
+  } catch (e) {
+    // Kota aşımı, gizli mod veya depolama kapalıysa: veriyi RAM'de tutmaya devam
+    // et ama kullanıcıyı uyar ki manuel yedek (JSON export) alsın.
+    console.error("Kayıt başarısız:", e);
+    if (!save._failed) {
+      save._failed = true;
+      err("⚠️ Kayıt başarısız! Veri kaydedilemedi — hemen Ayarlar > Yedekle ile dışa aktarın.");
+    }
+    return; // meta cache'i de güncelleme; tutarsız durum bırakma
+  }
   updateMetaCache(); // SW'nin sabah hatırlatıcısı için iade sayısını güncelle
 }
 function saveMsg(m) { save(); flash(m); render(); }
