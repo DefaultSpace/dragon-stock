@@ -106,6 +106,8 @@ function getDragonStage(level) {
 
 const els = {};
 let app, activeFilter = "all", searchTerm = "", deferredInstallPrompt = null;
+let selectMode = false;
+const selected = new Set();
 
 document.addEventListener("DOMContentLoaded", () => {
   requestPersistentStorage();
@@ -140,19 +142,40 @@ function cacheEls() {
     dn: $("#dragonName"), dxf: $("#dragonExpFill"), dxt: $("#dragonExpText"), dlv: $("#dragonLv"),
     de: $("#dragonEmoji"), dd: $("#dragonDesc"), dg: $("#dragonGlow"), ds: $("#dragonScene"),
     dfb: $("#dragonFireBurst"),
-    sdn: $("#dDialogName"), ss: $("#strengthStat"), sa: $("#agilityStat"), sp: $("#perceptionStat"),
-    sg: $("#goldStat"), sf: $("#firePowerStat"), sl: $("#dialogLevel"), sde: $("#dDialogEmoji"),
-    sdd: $("#dDialogDesc"), hl: $("#headerLevel"), sv: $("#scannerVideo"), stip: $("#scannerTip")
+    sdn: $("#dDialogName"), sl: $("#dialogLevel"), sde: $("#dDialogEmoji"), sdd: $("#dDialogDesc"),
+    stTotal: $("#statTotal"), stActive: $("#statActive"), stPending: $("#statPending"),
+    stDelivered: $("#statDelivered"), stCatalog: $("#statCatalog"),
+    stStreak: $("#statStreak"), stBest: $("#statBest"),
+    hl: $("#headerLevel"), hs: $("#headerStreak"),
+    dueBar: $("#dueBar"), undoBar: $("#undoBar"), undoMsg: $("#undoMsg"), undoBtn: $("#undoBtn"),
+    quickCodes: $("#quickCodes"),
+    selectToggle: $("#selectToggle"), bulkBar: $("#bulkBar"), bulkCount: $("#bulkCount"),
+    bulkDeliver: $("#bulkDeliver"), bulkDelete: $("#bulkDelete"), bulkCancel: $("#bulkCancel"),
+    editName: $("#editDragonName"),
+    qtyInput: $("#qtyInput"),
+    sv: $("#scannerVideo"), stip: $("#scannerTip")
   });
 }
 
 function bindEvents() {
   if (els.pf) {
-    els.pf.addEventListener("submit", e => { 
-      e.preventDefault(); 
-      addPart(els.pi.value, els.pn?.value?.trim() || ""); 
+    els.pf.addEventListener("submit", e => {
+      e.preventDefault();
+      const qty = els.qtyInput ? Math.max(1, parseInt(els.qtyInput.value, 10) || 1) : 1;
+      addPart(els.pi.value, els.pn?.value?.trim() || "", qty);
+      if (els.qtyInput) els.qtyInput.value = "1";
     });
   }
+
+  const qtyDec = document.querySelector("#qtyDec");
+  const qtyInc = document.querySelector("#qtyInc");
+  const setQty = d => {
+    if (!els.qtyInput) return;
+    els.qtyInput.value = String(Math.max(1, (parseInt(els.qtyInput.value, 10) || 1) + d));
+    sfx.play("click");
+  };
+  if (qtyDec) qtyDec.addEventListener("click", () => setQty(-1));
+  if (qtyInc) qtyInc.addEventListener("click", () => setQty(1));
   
   if (els.pi) {
     els.pi.addEventListener("input", () => {
@@ -193,16 +216,6 @@ function bindEvents() {
       startScanner();
     });
     els.scd.addEventListener("close", stopScanner);
-  }
-
-  const simulateScan = document.querySelector("#simulateScan");
-  if (simulateScan && els.scd && els.pi) {
-    simulateScan.addEventListener("click", () => {
-      sfx.play("laser");
-      const c = String(Math.floor(10000000 + Math.random() * 90000000));
-      els.scd.close();
-      confirmAndAdd(c);
-    });
   }
 
   document.querySelectorAll("[data-complete-quest]").forEach(b => {
@@ -259,6 +272,15 @@ function bindEvents() {
   const statsBtn = document.querySelector("#statsBtn");
   if (statsBtn) statsBtn.addEventListener("click", () => { sfx.play("click"); openStats(); });
   if (els.ds) els.ds.addEventListener("click", () => { sfx.play("click"); openStats(); });
+
+  if (els.undoBtn) els.undoBtn.addEventListener("click", doUndo);
+
+  if (els.editName) els.editName.addEventListener("click", editDragonName);
+
+  if (els.selectToggle) els.selectToggle.addEventListener("click", () => { sfx.play("click"); setSelectMode(!selectMode); });
+  if (els.bulkDeliver) els.bulkDeliver.addEventListener("click", () => { sfx.play("success"); bulkDeliver(); });
+  if (els.bulkDelete) els.bulkDelete.addEventListener("click", bulkDelete);
+  if (els.bulkCancel) els.bulkCancel.addEventListener("click", () => { sfx.play("click"); setSelectMode(false); });
 
   const notifBtn = document.querySelector("#notifBtn");
   if (notifBtn && els.nd) {
@@ -323,7 +345,7 @@ function bindEvents() {
   const resetAppBtn = document.querySelector("#resetAppBtn");
   if (resetAppBtn) {
     resetAppBtn.addEventListener("click", () => {
-      if (!confirm("TÜM veriler silinecek: parçalar, seviye, altın ve parça hafızası.\n\nDevam edilsin mi?")) return;
+      if (!confirm("TÜM veriler silinecek: parçalar, seviye ve parça hafızası.\n\nDevam edilsin mi?")) return;
       if (!confirm("Son onay: Bu işlem GERİ ALINAMAZ. Yedek almadıysan iptal et.\n\nHer şey silinsin mi?")) return;
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(BK_KEY);
@@ -430,27 +452,25 @@ app = loadState();
 
 function initState() {
   return {
-    profile: { name: "Hüseyin Emrehan", level: 1, exp: 0, stats: { strength: 1, agility: 1, perception: 1, firePower: 1 }, gold: 0 },
+    profile: { name: "Hüseyin Emrehan", level: 1, exp: 0 },
+    streak: { count: 0, lastDay: null, best: 0 },
     quests: { date: todayKey(), completed: {} },
     penaltyActive: false,
     weeklyCount: { lastDoneAt: null, weekKey: null },
     settings: { sound: true, vibration: true, notifications: false },
     catalog: {},
+    usage: {},
     parts: []
   };
 }
 
 function normalize(d) {
   const p = d.profile || {};
-  const s = {
-    strength: +p.stats?.strength || 1,
-    agility: +p.stats?.agility || 1,
-    perception: +p.stats?.perception || 1,
-    firePower: +p.stats?.firePower || 1
-  };
   const st = d.settings || {};
+  const streakIn = d.streak || {};
   const state = {
-    profile: { name: p.name || "Hüseyin Emrehan", level: +p.level || 1, exp: +p.exp || 0, stats: s, gold: +p.gold || 0 },
+    profile: { name: p.name || "Hüseyin Emrehan", level: +p.level || 1, exp: +p.exp || 0, dragonName: (p.dragonName || "").toString().slice(0, 24) },
+    streak: { count: +streakIn.count || 0, lastDay: streakIn.lastDay || null, best: +streakIn.best || 0 },
     quests: d.quests || { date: todayKey(), completed: {} },
     penaltyActive: !!d.penaltyActive,
     weeklyCount: d.weeklyCount || { lastDoneAt: null, weekKey: null },
@@ -460,6 +480,7 @@ function normalize(d) {
       notifications: st.notifications === true
     },
     catalog: (d.catalog && typeof d.catalog === "object") ? d.catalog : {},
+    usage: (d.usage && typeof d.usage === "object") ? d.usage : {},
     parts: Array.isArray(d.parts) ? d.parts.map(normalizePart).filter(Boolean) : []
   };
   // Parça hafızasını eski kayıtlardaki notlardan da besle
@@ -473,28 +494,55 @@ function normalize(d) {
 
 function normalizePart(p) {
   if (!p || !/^\d{8}$/.test("" + p.code)) return null;
-  return { 
-    id: p.id || id(), 
-    code: "" + p.code, 
-    note: p.note || "", 
-    state: stateLabels[p.state] ? p.state : "active", 
-    createdAt: +p.createdAt || Date.now(), 
-    timestamps: p.timestamps || { acquiredAt: Date.now() }, 
-    history: Array.isArray(p.history) ? p.history : [] 
+  return {
+    id: p.id || id(),
+    code: "" + p.code,
+    note: p.note || "",
+    qty: Math.max(1, Math.floor(+p.qty || 1)),
+    state: stateLabels[p.state] ? p.state : "active",
+    createdAt: +p.createdAt || Date.now(),
+    timestamps: p.timestamps || { acquiredAt: Date.now() },
+    history: Array.isArray(p.history) ? p.history : []
   };
 }
 
-function mkPart(code, state, createdAt, note) {
-  const p = { id: id(), code, note, state, createdAt, timestamps: { acquiredAt: createdAt }, history: [{ state, at: createdAt }] };
+function mkPart(code, state, createdAt, note, qty) {
+  const p = { id: id(), code, note, qty: Math.max(1, Math.floor(+qty || 1)), state, createdAt, timestamps: { acquiredAt: createdAt }, history: [{ state, at: createdAt }] };
   if (state === "warranty") p.timestamps.mountedAt = createdAt + 3600000;
   if (state === "ypa") p.timestamps.ypaStartedAt = createdAt;
   if (state === "safeReturn") p.timestamps.returnDecisionAt = createdAt;
   return p;
 }
 
-function addPart(val, note) {
+function addPart(val, note, qty) {
   const code = ("" + val).trim();
   if (!/^\d{8}$/.test(code)) { flash("BSH kodu 8 rakam olmalı.", true); return; }
+  const amount = Math.max(1, Math.floor(+qty || 1));
+
+  // Parça hafızası: not girilmediyse hafızadan al, girildiyse hafızayı güncelle
+  let finalNote = (note || "").trim();
+  if (!finalNote && app.catalog[code]) {
+    finalNote = app.catalog[code];
+  } else if (finalNote && !AUTO_NOTES.includes(finalNote)) {
+    app.catalog[code] = finalNote;
+  }
+
+  // Aynı kod zaten AKTİF stoktaysa: yeni kart açma, adedi artır
+  const activeDup = app.parts.find(p => p.code === code && p.state === "active");
+  if (activeDup) {
+    activeDup.qty = (activeDup.qty || 1) + amount;
+    bumpUsage(code, amount);
+    sfx.play("success");
+    award(20, "Stok girişi");
+    autoQuest("stockEntry");
+    if (els.pi) { els.pi.value = ""; els.pi.focus(); }
+    if (els.pn) els.pn.value = "";
+    save(); flash(`${code} adedi ${activeDup.qty} oldu (+${amount}).`); render();
+    floatXP(`+${amount} adet`, els.pi);
+    return;
+  }
+
+  // Kod iade/geçmiş dışı başka bir durumda varsa uyar ve oraya götür
   const dup = app.parts.find(p => p.code === code && p.state !== "history");
   if (dup) {
     setFilter(dup.state);
@@ -503,20 +551,15 @@ function addPart(val, note) {
     flash(`${code} zaten ${stateLabels[dup.state]} listesinde.`, true);
     return;
   }
-  // Parça hafızası: not girilmediyse hafızadan al, girildiyse hafızayı güncelle
-  let finalNote = (note || "").trim();
-  if (!finalNote && app.catalog[code]) {
-    finalNote = app.catalog[code];
-  } else if (finalNote && !AUTO_NOTES.includes(finalNote)) {
-    app.catalog[code] = finalNote;
-  }
+
   sfx.play("success");
-  app.parts.unshift(mkPart(code, "active", Date.now(), finalNote));
-  award(20, 0, "agility", 1, "Stok girişi");
+  app.parts.unshift(mkPart(code, "active", Date.now(), finalNote, amount));
+  bumpUsage(code, amount);
+  award(20, "Stok girişi");
   autoQuest("stockEntry");
   if (els.pi) { els.pi.value = ""; els.pi.focus(); }
   if (els.pn) els.pn.value = "";
-  save(); flash(`${code}${finalNote ? " · " + finalNote : ""} eklendi.`); render();
+  save(); flash(`${code}${finalNote ? " · " + finalNote : ""}${amount > 1 ? " ×" + amount : ""} eklendi.`); render();
 
   const card = document.querySelector(`[data-card-id="${app.parts[0].id}"]`);
   if (card) {
@@ -524,6 +567,110 @@ function addPart(val, note) {
     setTimeout(() => card.classList.remove("just-added"), 1200);
   }
   floatXP("+20 EXP", els.pi);
+}
+
+/* Sık kullanılan parça paneli için kod kullanım sayacı */
+function bumpUsage(code, amount) {
+  app.usage = app.usage || {};
+  app.usage[code] = (app.usage[code] || 0) + (amount || 1);
+}
+
+/* Karttaki +/- ile adet değiştir (en az 1) */
+function changeQty(id, delta) {
+  const p = findP(id); if (!p) return;
+  const next = Math.max(1, (p.qty || 1) + delta);
+  if (next === p.qty) return;
+  p.qty = next;
+  sfx.play("click");
+  vibrate(8);
+  save(); render();
+}
+
+/* ─── Sık Kullanılan Parçalar paneli ─── */
+function renderQuickCodes() {
+  if (!els.quickCodes) return;
+  const entries = Object.entries(app.usage || {})
+    .filter(([c]) => /^\d{8}$/.test(c))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
+  if (!entries.length) { els.quickCodes.classList.add("hidden"); els.quickCodes.innerHTML = ""; return; }
+  const chips = entries.map(([code, cnt]) => {
+    const name = app.catalog[code] || "";
+    return `<button type="button" class="quick-chip" data-quick="${code}" title="${esc(name)} · ${cnt} kez eklendi"><span class="qc-code">${code}</span>${name ? `<span class="qc-name">${esc(name)}</span>` : ""}</button>`;
+  }).join("");
+  els.quickCodes.innerHTML = `<div class="qc-head">⚡ Sık Kullanılanlar</div><div class="qc-chips">${chips}</div>`;
+  els.quickCodes.classList.remove("hidden");
+  els.quickCodes.querySelectorAll("[data-quick]").forEach(b =>
+    b.addEventListener("click", () => addPart(b.dataset.quick)));
+}
+
+/* ─── Çoklu seçim & toplu işlem ─── */
+function setSelectMode(on) {
+  selectMode = on;
+  selected.clear();
+  syncSelectUI();
+  render();
+}
+function syncSelectUI() {
+  if (els.selectToggle) {
+    els.selectToggle.classList.toggle("active", selectMode);
+    els.selectToggle.textContent = selectMode ? "✖ Vazgeç" : "☑️ Seç";
+  }
+  updateBulkBar();
+}
+function toggleSelect(id) {
+  if (selected.has(id)) selected.delete(id); else selected.add(id);
+  sfx.play("click");
+  vibrate(8);
+  const card = document.querySelector(`[data-select-id="${id}"]`);
+  if (card) card.classList.toggle("selected", selected.has(id));
+  updateBulkBar();
+}
+function updateBulkBar() {
+  if (!els.bulkBar) return;
+  if (!selectMode || selected.size === 0) { els.bulkBar.classList.add("hidden"); return; }
+  if (els.bulkCount) els.bulkCount.textContent = `Seçili: ${selected.size}`;
+  els.bulkBar.classList.remove("hidden");
+}
+function bulkDeliver() {
+  const targets = [...selected].map(findP).filter(p => p && ["warranty", "ypa", "safeReturn"].includes(p.state));
+  if (!targets.length) { flash("Seçili iade parçası yok — sadece iade bekleyenler teslim edilir.", true); return; }
+  const before = snapshotParts();
+  const now = Date.now();
+  targets.forEach(p => {
+    p.timestamps.warehouseDeliveredAt = now;
+    p.history.push({ state: "warehouseDelivered", at: now });
+    p.state = "history";
+  });
+  award(120, "Toplu depo teslimi");
+  const n = targets.length;
+  selectMode = false; selected.clear(); syncSelectUI();
+  saveMsg(`${n} parça depoya teslim edildi. ✅`);
+  offerUndo(`${n} parça teslim edildi.`, before);
+}
+function bulkDelete() {
+  if (!selected.size) return;
+  if (!confirm(`${selected.size} parça silinsin mi?\n\n(Parça hafızasındaki adları korunur.)`)) return;
+  const before = snapshotParts();
+  const n = selected.size;
+  app.parts = app.parts.filter(p => !selected.has(p.id));
+  selectMode = false; selected.clear(); syncSelectUI();
+  vibrate([20, 40, 20]);
+  saveMsg(`${n} parça silindi.`);
+  offerUndo(`${n} parça silindi.`, before);
+}
+
+/* ─── Ejderhaya isim verme ─── */
+function editDragonName() {
+  const cur = app.profile.dragonName || "";
+  const v = prompt("Ejderhana bir isim ver (boş bırakırsan kaldırılır):", cur);
+  if (v === null) return;
+  app.profile.dragonName = v.trim().slice(0, 24);
+  save();
+  updateDragonVisual();
+  const stage = getDragonStage(app.profile.level);
+  if (els.sdn) els.sdn.textContent = app.profile.dragonName || stage.name;
+  flash(app.profile.dragonName ? `Ejderhanın adı: ${app.profile.dragonName} 🐉` : "İsim kaldırıldı.");
 }
 
 /* Tarama sonrası doğrulama: okunan kod direkt eklenmez.
@@ -547,6 +694,7 @@ function confirmAndAdd(code) {
 function changeState(id, next) {
   sfx.play("click");
   const p = findP(id); if (!p) return;
+  const before = snapshotParts();
   const card = document.querySelector(`[data-card-id="${id}"]`);
   if (card) card.classList.add("state-changing");
   const prev = p.state;
@@ -558,14 +706,14 @@ function changeState(id, next) {
   if (next === "safeReturn") p.timestamps.returnDecisionAt = now;
 
   const r = {
-    warranty: { e: 45, s: "strength" },
-    history: { e: 80, g: 60, s: "strength" },
-    ypa: { e: 25, s: "agility" },
-    safeReturn: { e: 35, g: 15 },
+    warranty: { e: 45 },
+    history: { e: 80 },
+    ypa: { e: 25 },
+    safeReturn: { e: 35 },
     active: { e: 10 }
   }[next];
 
-  if (r) award(r.e || 0, r.g || 0, r.s || null, 1, "Durum değişikliği");
+  if (r) award(r.e || 0, "Durum değişikliği");
 
   const msg = {
     warranty: `${p.code} takıldı — eski parçayı YARIN depoya ver (Arızalı İade).`,
@@ -578,6 +726,7 @@ function changeState(id, next) {
   }[next] || `${p.code} güncellendi.`;
 
   saveMsg(msg);
+  offerUndo(msg, before);
   if (r?.e && card) floatXP(`+${r.e} EXP`, card);
 }
 
@@ -599,7 +748,7 @@ function finishDeliver(id, prev) {
   p.timestamps.warehouseDeliveredAt = now;
   p.history.push({ state: "warehouseDelivered", at: now });
   p.state = "history";
-  award(prev === "ypa" ? 180 : 120, 90, "strength", 1, "Depo teslimi");
+  award(prev === "ypa" ? 180 : 120, "Depo teslimi");
   if (prev === "ypa" || prev === "warranty") autoQuest("ypaHunter");
   saveMsg(`${p.code} depoya teslim edildi. ✅`);
 }
@@ -616,24 +765,44 @@ function returnDeadline(p) {
   return null;
 }
 
-function award(exp, gold, stat, amt, reason) {
+function award(exp, reason) {
   const before = app.profile.level, beforeStage = getDragonStage(before).id;
-  app.profile.exp += exp || 0; app.profile.gold += gold || 0;
-  if (stat) app.profile.stats[stat] = (app.profile.stats[stat] || 0) + (amt || 0);
-  
+  app.profile.exp += exp || 0;
+
   while (app.profile.exp >= expNeed(app.profile.level)) {
     app.profile.exp -= expNeed(app.profile.level);
     app.profile.level++;
-    app.profile.stats.strength++; 
-    app.profile.stats.agility++; 
-    app.profile.stats.perception++; 
-    app.profile.stats.firePower++;
   }
-  
+
+  bumpStreak();
+
   const afterStage = getDragonStage(app.profile.level).id;
   if (app.profile.level > before) showLevelUp();
   if (afterStage !== beforeStage) triggerEvo(beforeStage, afterStage);
   updateDragonVisual();
+}
+
+/* Günlük seri: her verimli iş yapıldığında çağrılır.
+   Aynı gün tekrar çağrılırsa değişmez; dünden devamsa +1;
+   bir günden fazla boşluk varsa 1'e sıfırlanır. */
+function bumpStreak() {
+  app.streak = app.streak || { count: 0, lastDay: null, best: 0 };
+  const today = todayKey();
+  if (app.streak.lastDay === today) return;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yesterday = `${y.getFullYear()}-${pad(y.getMonth() + 1)}-${pad(y.getDate())}`;
+  app.streak.count = app.streak.lastDay === yesterday ? app.streak.count + 1 : 1;
+  app.streak.lastDay = today;
+  if (app.streak.count > (app.streak.best || 0)) app.streak.best = app.streak.count;
+  updateStreakUI();
+  if (app.streak.count >= 2) toast(`🔥 ${app.streak.count} günlük seri!`, "success", 3500);
+}
+
+function updateStreakUI() {
+  if (!els.hs) return;
+  const c = (app.streak && app.streak.count) || 0;
+  els.hs.textContent = `🔥 ${c}`;
+  els.hs.classList.toggle("hidden", c < 1);
 }
 
 function expNeed(l) { return 100 + (l - 1) * 55; }
@@ -641,7 +810,7 @@ function expNeed(l) { return 100 + (l - 1) * 55; }
 function updateDragonVisual() {
   if (!els.dn) return;
   const stage = getDragonStage(app.profile.level), need = expNeed(app.profile.level), pct = Math.min(100, Math.round((app.profile.exp / need) * 100));
-  els.dn.textContent = stage.name;
+  els.dn.textContent = app.profile.dragonName || stage.name;
   els.dxf.style.width = `${pct}%`;
   els.dxt.textContent = `${app.profile.exp}/${need}`;
   els.dlv.textContent = `Lv.${app.profile.level}`;
@@ -671,11 +840,11 @@ function showLevelUp() {
    ypaHunter  → bir iade parçasının depoya teslimi */
 function autoQuest(key) {
   if (app.quests.completed[key]) return;
-  const r = { stockEntry: { e: 50, g: 20, s: "agility" }, ypaHunter: { e: 150, g: 80, s: "strength" } }[key];
+  const r = { stockEntry: { e: 50 }, ypaHunter: { e: 150 } }[key];
   app.quests.completed[key] = true;
-  if (r) award(r.e, r.g, r.s, 1, "Görev");
+  if (r) award(r.e, "Görev");
   sfx.play("success");
-  toast(`🎯 Görev tamamlandı! +${r.e} EXP / +${r.g} Gold`, "success", 4000);
+  toast(`🎯 Görev tamamlandı! +${r.e} EXP`, "success", 4000);
   renderQuests();
 }
 
@@ -695,7 +864,7 @@ function completeAudit() {
     return; 
   }
   app.penaltyActive = false;
-  award(220, 120, "perception", 3, "Sayım"); 
+  award(220, "Sayım");
   els.ad.close(); 
   saveMsg("Kusursuz sayım! ✅");
 }
@@ -727,7 +896,7 @@ function completeWeekly() {
     return; 
   }
   app.weeklyCount = { lastDoneAt: Date.now(), weekKey: getWeekKey() };
-  award(300, 150, "perception", 2, "Haftalık sayım"); 
+  award(300, "Haftalık sayım");
   els.wd.close(); 
   updateWBadge(); 
   saveMsg("✅ Haftalık sayım tamam!");
@@ -752,23 +921,87 @@ function openStats() {
   if (!els.sd) return;
   const stage = getDragonStage(app.profile.level);
   if (els.sde) els.sde.textContent = stage.emoji;
-  if (els.sdn) els.sdn.textContent = stage.name;
+  if (els.sdn) els.sdn.textContent = app.profile.dragonName || stage.name;
   if (els.sdd) els.sdd.textContent = stage.desc;
-  if (els.ss) els.ss.textContent = app.profile.stats.strength;
-  if (els.sa) els.sa.textContent = app.profile.stats.agility;
-  if (els.sp) els.sp.textContent = app.profile.stats.perception;
-  if (els.sg) els.sg.textContent = app.profile.gold;
-  if (els.sf) els.sf.textContent = app.profile.stats.firePower;
+
+  const c = counts();
+  const pending = c.warranty + c.ypa + c.safeReturn;
+  const delivered = app.parts.filter(p => p.timestamps && p.timestamps.warehouseDeliveredAt).length;
+  const catalogSize = Object.keys(app.catalog || {}).length;
+
   if (els.sl) els.sl.textContent = app.profile.level;
+  if (els.stTotal) els.stTotal.textContent = app.parts.length;
+  if (els.stActive) els.stActive.textContent = c.active;
+  if (els.stPending) els.stPending.textContent = pending;
+  if (els.stDelivered) els.stDelivered.textContent = delivered;
+  if (els.stCatalog) els.stCatalog.textContent = catalogSize;
+  if (els.stStreak) els.stStreak.textContent = (app.streak && app.streak.count) || 0;
+  if (els.stBest) els.stBest.textContent = (app.streak && app.streak.best) || 0;
   els.sd.showModal();
 }
 
-function render() { 
-  updateDragonVisual(); 
-  renderQuests(); 
-  renderStock(); 
-  updateWBadge(); 
+function render() {
+  updateDragonVisual();
+  updateStreakUI();
+  renderQuests();
+  renderQuickCodes();
+  renderDueBar();
+  renderStock();
+  updateWBadge();
 }
+
+/* Bugün / gecikmiş iade paneli: teslim süresi 24 saatten az kalan
+   veya süresi geçmiş parçaları en üstte toplar. */
+function renderDueBar() {
+  if (!els.dueBar) return;
+  const now = Date.now();
+  const items = app.parts
+    .filter(p => ["warranty", "ypa", "safeReturn"].includes(p.state))
+    .map(p => ({ p, dl: returnDeadline(p) }))
+    .filter(x => x.dl !== null)
+    .filter(x => x.dl - now < DAY_MS) // 24 saatten az kaldı ya da geçti
+    .sort((a, b) => a.dl - b.dl);
+
+  if (!items.length) { els.dueBar.classList.add("hidden"); els.dueBar.innerHTML = ""; return; }
+
+  const overdue = items.filter(x => x.dl < now).length;
+  const head = overdue
+    ? `⚠️ ${overdue} parça GECİKTİ — hemen depoya!`
+    : `⏰ ${items.length} parça bugün teslim edilmeli`;
+  const chips = items.map(({ p, dl }) => {
+    const late = dl < now;
+    const name = p.note || app.catalog[p.code] || stateLabels[p.state];
+    return `<button class="due-chip ${late ? "late" : ""}" data-due-jump="${p.state}" title="${esc(name)}">${p.code} · ${late ? "GECİKTİ" : fmtCD(p)}</button>`;
+  }).join("");
+  els.dueBar.innerHTML = `<div class="due-head">${head}</div><div class="due-chips">${chips}</div>`;
+  els.dueBar.classList.remove("hidden");
+  els.dueBar.querySelectorAll("[data-due-jump]").forEach(b =>
+    b.addEventListener("click", () => { sfx.play("click"); setFilter(b.dataset.dueJump); }));
+}
+
+/* ─── Geri Al (Undo) ─── */
+let pendingUndo = null, undoTimer = null;
+function offerUndo(msg, beforeParts) {
+  pendingUndo = beforeParts;
+  if (!els.undoBar || !els.undoMsg) return;
+  els.undoMsg.textContent = msg;
+  els.undoBar.classList.remove("hidden");
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(hideUndo, 6000);
+}
+function hideUndo() {
+  pendingUndo = null;
+  if (els.undoBar) els.undoBar.classList.add("hidden");
+}
+function doUndo() {
+  if (!pendingUndo) return;
+  app.parts = pendingUndo;
+  pendingUndo = null;
+  hideUndo();
+  sfx.play("click");
+  saveMsg("↩ İşlem geri alındı.");
+}
+function snapshotParts() { return JSON.parse(JSON.stringify(app.parts)); }
 
 function renderQuests() {
   document.querySelectorAll("[data-complete-quest]").forEach(b => {
@@ -782,16 +1015,24 @@ function renderQuests() {
 
 function renderStock() {
   if (!els.sc) return;
+  els.sc.classList.toggle("select-mode", selectMode);
   const visible = activeFilter === "all" ? columns : columns.filter(c => c.key === activeFilter);
   els.sc.innerHTML = visible.map(col => {
     const items = app.parts.filter(p => p.state === col.key).filter(matchSearch);
-    return `<section class="stock-column"><div class="column-head"><div><h3>${col.title}</h3><small>${col.hint}</small></div><span class="column-count">${items.length}</span></div><div class="part-list">${items.length ? items.map(renderCard).join("") : `<div class="empty-state">${emptyTxt(col.key)}</div>`}</div></section>`;
+    const units = items.reduce((s, p) => s + (p.qty || 1), 0);
+    return `<section class="stock-column"><div class="column-head"><div><h3>${col.title}</h3><small>${col.hint}</small></div><span class="column-count">${units}</span></div><div class="part-list">${items.length ? items.map(renderCard).join("") : `<div class="empty-state">${emptyTxt(col.key)}</div>`}</div></section>`;
   }).join("");
-  
-  els.sc.querySelectorAll("[data-state]").forEach(b => b.addEventListener("click", () => changeState(b.dataset.id, b.dataset.state)));
-  els.sc.querySelectorAll("[data-deliver]").forEach(b => b.addEventListener("click", () => deliverToWH(b.dataset.deliver)));
-  els.sc.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => deletePart(b.dataset.delete)));
-  els.sc.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => copyCode(b.dataset.copy)));
+
+  if (selectMode) {
+    els.sc.querySelectorAll("[data-select-id]").forEach(c => c.addEventListener("click", () => toggleSelect(c.dataset.selectId)));
+  } else {
+    els.sc.querySelectorAll("[data-state]").forEach(b => b.addEventListener("click", () => changeState(b.dataset.id, b.dataset.state)));
+    els.sc.querySelectorAll("[data-deliver]").forEach(b => b.addEventListener("click", () => deliverToWH(b.dataset.deliver)));
+    els.sc.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => deletePart(b.dataset.delete)));
+    els.sc.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => copyCode(b.dataset.copy)));
+    els.sc.querySelectorAll("[data-qty-inc]").forEach(b => b.addEventListener("click", () => changeQty(b.dataset.qtyInc, 1)));
+    els.sc.querySelectorAll("[data-qty-dec]").forEach(b => b.addEventListener("click", () => changeQty(b.dataset.qtyDec, -1)));
+  }
   updateSummary();
 }
 
@@ -815,7 +1056,13 @@ function renderCard(p) {
   
   const name = p.note || app.catalog[p.code] || "";
   const showCD = p.state === "ypa" || p.state === "warranty";
-  return `<article class="part-card ${p.state}" data-card-id="${p.id}"><div class="part-head"><div><span class="part-code">${p.code}</span>${name ? `<span class="part-name">${esc(name)}</span>` : ""}<small>${fmtDate(p.createdAt)}</small></div><span class="state-pill">${stateLabels[p.state]}</span></div><div class="meta-list">${meta.map(([l, v]) => `<span>${l}: <b>${fmtDate(v)}</b></span>`).join("")}</div>${showCD ? `<div class="countdown" data-cd="${p.id}">${fmtCD(p)}</div>` : ""}<div class="card-actions">${renderActs(p)}</div></article>`;
+  const qty = p.qty || 1;
+  const sel = selected.has(p.id) ? " selected" : "";
+  const qtyBadge = qty > 1 ? `<span class="qty-badge">×${qty}</span>` : "";
+  const stepper = p.state !== "history"
+    ? `<div class="qty-stepper"><button type="button" data-qty-dec="${p.id}" aria-label="Adet azalt">−</button><span class="qty-val">${qty} adet</span><button type="button" data-qty-inc="${p.id}" aria-label="Adet artır">+</button></div>`
+    : "";
+  return `<article class="part-card ${p.state}${sel}" data-card-id="${p.id}" data-select-id="${p.id}"><span class="select-tick">✓</span><div class="part-head"><div><span class="part-code">${p.code}</span>${qtyBadge}${name ? `<span class="part-name">${esc(name)}</span>` : ""}<small>${fmtDate(p.createdAt)}</small></div><span class="state-pill">${stateLabels[p.state]}</span></div><div class="meta-list">${meta.map(([l, v]) => `<span>${l}: <b>${fmtDate(v)}</b></span>`).join("")}</div>${showCD ? `<div class="countdown" data-cd="${p.id}">${fmtCD(p)}</div>` : ""}<div class="card-bottom">${stepper}<div class="card-actions">${renderActs(p)}</div></div></article>`;
 }
 
 /* İş akışı butonları:
@@ -841,10 +1088,12 @@ function renderActs(p) {
 function deletePart(id) {
   const p = findP(id); if (!p) return;
   if (!confirm(`${p.code}${p.note ? " · " + p.note : ""} silinsin mi?\n\nBu parça listeden tamamen kaldırılacak. (Parça hafızasındaki adı korunur.)`)) return;
+  const before = snapshotParts();
   app.parts = app.parts.filter(x => x.id !== id);
   vibrate([20, 40, 20]);
   sfx.play("click");
   saveMsg(`${p.code} silindi.`);
+  offerUndo(`${p.code} silindi.`, before);
 }
 
 function setFilter(f) {
@@ -864,8 +1113,8 @@ function matchSearch(p) {
   return [p.code, p.note || "", stateLabels[p.state], fmtDate(p.createdAt)].join(" ").toLowerCase().includes(searchTerm);
 }
 
-function counts() { 
-  return app.parts.reduce((c, p) => { c[p.state] = (c[p.state] || 0) + 1; return c; }, { active: 0, warranty: 0, ypa: 0, safeReturn: 0, history: 0 }); 
+function counts() {
+  return app.parts.reduce((c, p) => { c[p.state] = (c[p.state] || 0) + (p.qty || 1); return c; }, { active: 0, warranty: 0, ypa: 0, safeReturn: 0, history: 0 });
 }
 function emptyTxt(k) { 
   if (searchTerm) return "Eşleşen yok."; 

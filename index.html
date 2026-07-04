@@ -30,6 +30,7 @@
             <div class="user-badge-wrap">
               <span class="user-name">Hüseyin Emrehan</span>
               <span class="rank-badge" id="headerLevel">Lv.1</span>
+              <span class="streak-badge hidden" id="headerStreak" title="Günlük seri">🔥 0</span>
             </div>
           </div>
         </div>
@@ -100,6 +101,25 @@
       </div>
     </div>
 
+    <!-- Due-today / overdue alert bar -->
+    <div id="dueBar" class="due-bar hidden"></div>
+
+    <!-- Undo bar -->
+    <div id="undoBar" class="undo-bar hidden">
+      <span id="undoMsg" class="undo-msg"></span>
+      <button id="undoBtn" type="button" class="undo-btn">↩ Geri Al</button>
+    </div>
+
+    <!-- Toplu işlem çubuğu -->
+    <div id="bulkBar" class="bulk-bar hidden">
+      <span id="bulkCount" class="bulk-count">Seçili: 0</span>
+      <div class="bulk-actions">
+        <button id="bulkDeliver" type="button" class="bulk-btn deliver">🚛 Teslim</button>
+        <button id="bulkDelete" type="button" class="bulk-btn danger">🗑️ Sil</button>
+        <button id="bulkCancel" type="button" class="bulk-btn ghost">İptal</button>
+      </div>
+    </div>
+
     <!-- Daily Quests -->
     <section class="quests-section">
       <div class="section-title-wrap">
@@ -109,14 +129,14 @@
         <div class="daily-btn" data-complete-quest="stockEntry">
           <div class="quest-info">
             <div class="quest-title">Stok Girişi Yap</div>
-            <div class="quest-reward">+50 EXP / +20 Gold</div>
+            <div class="quest-reward">+50 EXP</div>
           </div>
           <div class="quest-status-icon">🔒</div>
         </div>
         <div class="daily-btn" data-complete-quest="ypaHunter">
           <div class="quest-info">
             <div class="quest-title">YPA Avcısı (Parça Kapat)</div>
-            <div class="quest-reward">+150 EXP / +80 Gold</div>
+            <div class="quest-reward">+150 EXP</div>
           </div>
           <div class="quest-status-icon">🔒</div>
         </div>
@@ -131,6 +151,11 @@
             <input type="text" id="partInput" placeholder="8 Haneli BSH Kodu Girin..." inputmode="numeric" autocomplete="off" required maxLength="8" />
             <label for="partInput">BSH Malzeme Kodu</label>
           </div>
+          <div class="qty-stepper form-qty" title="Adet">
+            <button type="button" id="qtyDec" aria-label="Adet azalt">−</button>
+            <input type="number" id="qtyInput" value="1" min="1" inputmode="numeric" aria-label="Adet" />
+            <button type="button" id="qtyInc" aria-label="Adet artır">+</button>
+          </div>
           <button type="submit" class="submit-btn">
             <span>Ekle</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -142,6 +167,9 @@
         </div>
         <p id="inputMessage" class="input-msg"></p>
       </form>
+
+      <!-- Sık kullanılan parçalar (tek dokunuşla ekle) -->
+      <div id="quickCodes" class="quick-codes hidden"></div>
 
       <!-- Advanced Filters Section -->
       <div class="filter-wrapper">
@@ -162,6 +190,11 @@
           <input type="text" id="searchInput" placeholder="Kod, not, tarih veya duruma göre akıllı ara..." autocomplete="off" />
           <button id="clearSearchBtn" type="button" class="clear-search-btn">&times;</button>
         </div>
+      </div>
+
+      <!-- Toplu işlem araç çubuğu -->
+      <div class="stock-toolbar">
+        <button type="button" id="selectToggle" class="select-toggle">☑️ Seç</button>
       </div>
 
       <!-- Dynamic Stock Board -->
@@ -206,33 +239,42 @@
         </div>
         <div class="stats-grid">
           <div class="stat-card">
-            <span class="sc-label">Seviye (Level)</span>
+            <span class="sc-label">Seviye</span>
             <span class="sc-value text-gold" id="dialogLevel">1</span>
           </div>
           <div class="stat-card">
-            <span class="sc-label">Güç (Strength)</span>
-            <span class="sc-value" id="strengthStat">1</span>
+            <span class="sc-label">🔥 Güncel Seri</span>
+            <span class="sc-value text-warn" id="statStreak">0</span>
           </div>
           <div class="stat-card">
-            <span class="sc-label">Çeviklik (Agility)</span>
-            <span class="sc-value" id="agilityStat">1</span>
+            <span class="sc-label">🏆 En Uzun Seri</span>
+            <span class="sc-value" id="statBest">0</span>
           </div>
           <div class="stat-card">
-            <span class="sc-label">Algı (Perception)</span>
-            <span class="sc-value" id="perceptionStat">1</span>
+            <span class="sc-label">Aktif Stok</span>
+            <span class="sc-value" id="statActive">0</span>
           </div>
           <div class="stat-card">
-            <span class="sc-label">Alev Gücü (Firepower)</span>
-            <span class="sc-value" id="firePowerStat">1</span>
+            <span class="sc-label">Bekleyen İade</span>
+            <span class="sc-value text-warn" id="statPending">0</span>
           </div>
           <div class="stat-card">
-            <span class="sc-label">Biriken Altın</span>
-            <span class="sc-value text-gold" id="goldStat">0</span>
+            <span class="sc-label">Depoya Teslim</span>
+            <span class="sc-value text-cyan" id="statDelivered">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="sc-label">Toplam Kayıt</span>
+            <span class="sc-value" id="statTotal">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="sc-label">Hafızadaki Parça Adı</span>
+            <span class="sc-value" id="statCatalog">0</span>
           </div>
         </div>
-        <form method="dialog" class="d-footer">
-          <button class="p-btn">Kapat</button>
-        </form>
+        <div class="d-footer">
+          <button type="button" id="editDragonName" class="g-btn">✏️ İsim Ver</button>
+          <form method="dialog" style="display:contents"><button class="p-btn">Kapat</button></form>
+        </div>
       </div>
     </dialog>
 
@@ -298,7 +340,6 @@
           <div class="scanner-tip" id="scannerTip">Kamerayı parça üzerindeki barkoda hizalayın</div>
         </div>
         <menu class="d-menu">
-          <button id="simulateScan" class="g-btn" type="button">Elle Simüle Et</button>
           <button value="cancel" class="g-btn">İptal</button>
         </menu>
       </form>

@@ -1625,6 +1625,303 @@ input, textarea {
   .dragon-scene, .quick-stats-bar, .quests-section { width: calc(100% - 28px); }
 }
 
+/* ─── Günlük seri rozeti ─── */
+.streak-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 2px 9px;
+  border-radius: 20px;
+  color: #1a0b00;
+  background: linear-gradient(135deg, #ff7a18, #ffb347);
+  box-shadow: 0 0 14px rgba(255, 122, 24, 0.4);
+}
+.streak-badge.hidden { display: none; }
+
+/* ─── Bugün / gecikmiş teslim paneli ─── */
+.due-bar {
+  width: min(680px, calc(100% - 28px));
+  margin: 10px auto 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--gold-dim);
+  background: linear-gradient(135deg, rgba(248, 197, 80, 0.12), rgba(248, 197, 80, 0.04));
+  box-shadow: 0 0 20px rgba(248, 197, 80, 0.15);
+  animation: duePulse 2.4s ease-in-out infinite;
+}
+.due-bar.hidden { display: none; }
+.due-bar:has(.due-chip.late) {
+  border-color: var(--red-dim);
+  background: linear-gradient(135deg, rgba(255, 45, 90, 0.14), rgba(255, 45, 90, 0.04));
+  box-shadow: 0 0 22px rgba(255, 45, 90, 0.2);
+}
+.due-head {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.due-bar:has(.due-chip.late) .due-head { color: var(--red); }
+.due-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.due-chip {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 10px;
+  color: var(--gold);
+  background: rgba(248, 197, 80, 0.12);
+  border: 1px solid var(--gold-dim);
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.due-chip:active { transform: scale(0.95); }
+.due-chip.late {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+  animation: latePulse 1s ease-in-out infinite;
+}
+@keyframes duePulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(248, 197, 80, 0.12); }
+  50% { box-shadow: 0 0 26px rgba(248, 197, 80, 0.28); }
+}
+@keyframes latePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+/* ─── Geri Al (Undo) çubuğu ─── */
+.undo-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px 10px 18px;
+  border-radius: 14px;
+  background: rgba(14, 16, 34, 0.96);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  max-width: calc(100% - 24px);
+}
+.undo-bar.hidden { display: none; }
+.undo-msg {
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.undo-btn {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 10px;
+  color: #0b0b1a;
+  background: linear-gradient(135deg, var(--cyan), #38bdf8);
+  border: none;
+  cursor: pointer;
+}
+.undo-btn:active { transform: scale(0.95); }
+
+/* ─── Adet stepper (form + kart) ─── */
+.qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.qty-stepper button {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--cyan);
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.qty-stepper button:active { background: rgba(0, 245, 255, 0.15); transform: scale(0.92); }
+.qty-stepper .qty-val {
+  min-width: 54px;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--mono);
+}
+.form-qty {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  height: 51px;
+}
+.form-qty button { width: 26px; height: 100%; font-size: 1.15rem; }
+.form-qty input {
+  width: 28px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 800;
+  font-family: var(--mono);
+  outline: none;
+  -moz-appearance: textfield;
+}
+.form-qty input::-webkit-outer-spin-button,
+.form-qty input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.qty-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-family: var(--mono);
+  color: #021018;
+  background: linear-gradient(135deg, var(--cyan), #7dd3fc);
+  vertical-align: middle;
+}
+.card-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.card-bottom .card-actions { margin-top: 0; flex: 1; }
+
+/* ─── Sık kullanılanlar paneli ─── */
+.quick-codes {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: linear-gradient(160deg, rgba(0, 245, 255, 0.06), rgba(10, 10, 30, 0.4));
+}
+.quick-codes.hidden { display: none; }
+.qc-head {
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--cyan);
+  margin-bottom: 8px;
+}
+.qc-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.quick-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--cyan-dim);
+  background: rgba(0, 245, 255, 0.08);
+  cursor: pointer;
+  transition: transform 0.12s, background 0.15s;
+}
+.quick-chip:active { transform: scale(0.94); background: rgba(0, 245, 255, 0.18); }
+.quick-chip .qc-code { font-family: var(--mono); font-size: 0.82rem; font-weight: 700; color: var(--cyan); }
+.quick-chip .qc-name { font-size: 0.66rem; color: var(--muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ─── Toplu seçim araç çubuğu + kart seçimi ─── */
+.stock-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 4px 0 8px;
+}
+.select-toggle {
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.select-toggle.active {
+  border-color: var(--cyan);
+  background: var(--cyan-dim);
+  color: var(--cyan);
+}
+.part-card .select-tick {
+  display: none;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  color: transparent;
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-align: center;
+  line-height: 22px;
+  z-index: 2;
+}
+.stock-columns.select-mode .part-card { cursor: pointer; }
+.stock-columns.select-mode .part-card .select-tick { display: block; }
+.stock-columns.select-mode .part-card .card-bottom,
+.stock-columns.select-mode .part-card .state-pill { opacity: 0.35; pointer-events: none; }
+.stock-columns.select-mode .part-card.selected {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px var(--cyan-dim), 0 0 18px rgba(0, 245, 255, 0.2);
+}
+.stock-columns.select-mode .part-card.selected .select-tick {
+  border-color: var(--cyan);
+  background: var(--cyan);
+  color: #021018;
+}
+
+.bulk-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 61;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 18px;
+  border-radius: 14px;
+  background: rgba(14, 16, 34, 0.97);
+  border: 1px solid var(--cyan-dim);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  max-width: calc(100% - 24px);
+}
+.bulk-bar.hidden { display: none; }
+.bulk-count { font-size: 0.82rem; font-weight: 700; color: var(--cyan); white-space: nowrap; }
+.bulk-actions { display: flex; gap: 7px; }
+.bulk-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bulk-btn.deliver { background: linear-gradient(135deg, var(--cyan), #38bdf8); color: #021018; }
+.bulk-btn.danger { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+.bulk-btn.ghost { background: rgba(255, 255, 255, 0.06); color: var(--muted); }
+.bulk-btn:active { transform: scale(0.94); }
+
 /* Respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -1,5 +1,5 @@
-/* Stok Takip — Service Worker v4.5 */
-const CACHE_NAME = "stok-takip-v4.5";
+/* Stok Takip — Service Worker v4.7 */
+const CACHE_NAME = "stok-takip-v4.7";
 const META_CACHE = "dragon-stock-meta"; // sayfa ile SW arasında paylaşılan küçük durum
 const APP_ASSETS = [
   "./",
